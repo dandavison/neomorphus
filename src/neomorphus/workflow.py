@@ -1,46 +1,17 @@
-from dataclasses import dataclass
-
+from neomorphus.actions import Action
+from neomorphus.actions.implement import action as implement
+from neomorphus.actions.init import action as init
+from neomorphus.actions.plan import action as plan
+from neomorphus.actions.select import action as select
 from neomorphus.status import Stage
-
-
-@dataclass(frozen=True)
-class Action:
-    name: str
-    description: str
-    command: str
-
 
 Workflow = dict[Stage, list[Action]]
 
 DEFAULT_WORKFLOW: Workflow = {
-    Stage.NO_TASK: [
-        Action(
-            name="init",
-            description="Create a task description",
-            command='neo init "description of the task"',
-        ),
-    ],
-    Stage.TASK_DEFINED: [
-        Action(
-            name="plan",
-            description="Generate N competing plans",
-            command="neo plan --count 2",
-        ),
-    ],
-    Stage.PLANS_PROPOSED: [
-        Action(
-            name="select",
-            description="Select a plan",
-            command="neo select <n>",
-        ),
-    ],
-    Stage.PLAN_SELECTED: [
-        Action(
-            name="implement",
-            description="Generate an implementation from the selected plan",
-            command="neo implement",
-        ),
-    ],
+    Stage.NO_TASK: [init],
+    Stage.TASK_DEFINED: [plan],
+    Stage.PLANS_PROPOSED: [select],
+    Stage.PLAN_SELECTED: [implement],
 }
 
 

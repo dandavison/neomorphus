@@ -1,9 +1,11 @@
+import sys
 from typing import Annotated
 
 import typer
 
 from neomorphus import git
 from neomorphus import run as run_mod
+from neomorphus.actions import task_context
 from neomorphus.status import infer_stage, stage_artifacts
 from neomorphus.workflow import DEFAULT_WORKFLOW, next_actions
 
@@ -31,8 +33,32 @@ def next_command() -> None:
         return
     typer.echo(f"stage: {stage}")
     for action in actions:
-        typer.echo(f"  {action.name}: {action.description}")
-        typer.echo(f"    $ {action.command}")
+        typer.echo(f"  {action.name}")
+        typer.echo(f"    $ neo do {action.name}")
+
+
+@app.command(name="do")
+def do_command(
+    action_name: Annotated[str, typer.Argument(help="Name of the action to execute")],
+) -> None:
+    """Execute a workflow action by name."""
+    root = git.repo_root()
+    stage = infer_stage(root)
+    actions = next_actions(DEFAULT_WORKFLOW, stage)
+    action = next((a for a in actions if a.name == action_name), None)
+    if action is None:
+        available = [a.name for a in actions]
+        print(
+            f"error: action '{action_name}' not available at stage '{stage}'. "
+            f"available: {available}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    ctx = task_context(root)
+    prompt = action.render_prompt(ctx)
+    typer.echo(f"action: {action.name}")
+    typer.echo(f"prompt: {prompt[:200]}{'...' if len(prompt) > 200 else ''}")
+    run_mod.run(prompt)
 
 
 @app.command(name="run")
