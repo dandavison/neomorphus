@@ -6,6 +6,7 @@ from pathlib import Path
 class Action:
     name: str
     prompt_template: str
+    human: bool = False
 
     def render_prompt(self, context: dict[str, str]) -> str:
         return self.prompt_template.format(**context)

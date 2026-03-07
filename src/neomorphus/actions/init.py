@@ -2,5 +2,6 @@ from neomorphus.actions import Action
 
 action = Action(
     name="init",
-    prompt_template=("Create the file .task/task.md describing the following task:\n\n{task}"),
+    prompt_template="Create .task/task.md describing your task, then commit.",
+    human=True,
 )

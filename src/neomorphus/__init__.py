@@ -33,8 +33,10 @@ def next_command() -> None:
         return
     typer.echo(f"stage: {stage}")
     for action in actions:
-        typer.echo(f"  {action.name}")
-        typer.echo(f"    $ neo do {action.name}")
+        if action.human:
+            typer.echo(f"  {action.name} (human): {action.prompt_template}")
+        else:
+            typer.echo(f"  {action.name}: $ neo do {action.name}")
 
 
 @app.command(name="do")
@@ -51,6 +53,12 @@ def do_command(
         print(
             f"error: action '{action_name}' not available at stage '{stage}'. "
             f"available: {available}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    if action.human:
+        print(
+            f"error: '{action_name}' is a human action: {action.prompt_template}",
             file=sys.stderr,
         )
         raise SystemExit(1)
