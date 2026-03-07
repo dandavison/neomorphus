@@ -27,6 +27,11 @@ def test_render_prompt():
     assert action.render_prompt({"task": "fix the bug"}) == "Task: fix the bug"
 
 
+def test_render_prompt_with_args():
+    action = Action(name="evolve", args=("target",), prompt_template="Rewrite {target}")
+    assert action.render_prompt({"target": ".task/task.md"}) == "Rewrite .task/task.md"
+
+
 def test_task_context(tmp_path: Path):
     task_dir = tmp_path / ".task"
     task_dir.mkdir()

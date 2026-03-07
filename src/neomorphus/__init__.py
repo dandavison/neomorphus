@@ -19,7 +19,7 @@ def _current_actions() -> list[Action]:
 def _make_action_command(action: Action) -> click.Command:
     @click.command(name=action.name)
     @click.option("--prompt", "-p", default=None, help="Additional steering prompt")
-    def handler(prompt: str | None) -> None:
+    def handler(prompt: str | None, **kwargs: str) -> None:
         if action.human:
             click.echo(f"{action.name} is a human action: {action.prompt_template}")
             raise SystemExit(1)
@@ -34,6 +34,7 @@ def _make_action_command(action: Action) -> click.Command:
             )
             raise SystemExit(1)
         ctx = task_context(root)
+        ctx.update(kwargs)
         if prompt:
             ctx["user_prompt"] = prompt
         rendered = action.render_prompt(ctx)
@@ -42,6 +43,9 @@ def _make_action_command(action: Action) -> click.Command:
         click.echo(f"action: {action.name}")
         click.echo(f"prompt: {rendered[:200]}{'...' if len(rendered) > 200 else ''}")
         run_mod.run(rendered, interactive=action.interactive)
+
+    for arg_name in action.args:
+        handler.params.insert(0, click.Argument([arg_name]))
 
     return handler
 

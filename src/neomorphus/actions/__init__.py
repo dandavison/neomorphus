@@ -8,6 +8,7 @@ class Action:
     prompt_template: str
     human: bool = False
     interactive: bool = False
+    args: tuple[str, ...] = ()
 
     def render_prompt(self, context: dict[str, str]) -> str:
         return self.prompt_template.format(**context)

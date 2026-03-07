@@ -1,24 +1,25 @@
+from textwrap import dedent
+
 from neomorphus.actions import Action
 
 action = Action(
     name="evolve",
-    prompt_template=(
-        "Read the task description in .task/task.md:\n\n{task}\n\n"
-        "Research the codebase to understand the relevant code, existing patterns, "
-        "and prior art. Then rewrite .task/task.md with a more precise, well-scoped "
-        "task description. Preserve the original intent but add specificity: "
-        "identify key files, clarify ambiguities, note constraints, and surface "
-        "design decisions that need to be made."
-    ),
+    args=("target",),
+    prompt_template=dedent("""
+        Read the file {target} and research the codebase to understand the relevant code, existing
+        patterns, and prior art. Then improve {target}. The objective of your improvements should be
+        specified in the following (if it is not then stop and report the problem):
+        """),
 )
 
 interactive = Action(
     name="evolve-interactive",
-    prompt_template=(
-        "Read the task description in .task/task.md:\n\n{task}\n\n"
-        "Research the codebase to understand the relevant code, existing patterns, "
-        "and prior art. Then work with the user to evolve .task/task.md into a more "
-        "precise, well-scoped task description."
-    ),
+    args=("target",),
+    prompt_template=dedent("""
+        Read the file {target} and research the codebase to understand the relevant code, existing
+        patterns, and prior art. Then work with the user to improve {target}. The objective of your
+        improvements should be specified in the following (if it is not then stop and report the
+        problem):
+        """),
     interactive=True,
 )
