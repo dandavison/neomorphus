@@ -11,11 +11,10 @@ def test_every_stage_has_actions():
         assert len(actions) >= 1, f"no actions for {stage}"
 
 
-def test_action_names_unique():
-    all_names: list[str] = []
-    for actions in DEFAULT_WORKFLOW.values():
-        all_names.extend(a.name for a in actions)
-    assert len(all_names) == len(set(all_names))
+def test_action_names_unique_per_stage():
+    for stage, actions in DEFAULT_WORKFLOW.items():
+        names = [a.name for a in actions]
+        assert len(names) == len(set(names)), f"duplicate action names at {stage}"
 
 
 def test_next_actions_unknown_stage():
