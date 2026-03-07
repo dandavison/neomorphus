@@ -1,15 +1,70 @@
-import sys
-from typing import Annotated
-
-import typer
+import click
 
 from neomorphus import git
 from neomorphus import run as run_mod
-from neomorphus.actions import task_context
+from neomorphus.actions import Action, task_context
 from neomorphus.status import infer_stage, stage_artifacts
 from neomorphus.workflow import DEFAULT_WORKFLOW, next_actions
 
-app = typer.Typer(add_completion=False)
+
+def _current_actions() -> list[Action]:
+    try:
+        root = git.repo_root()
+        stage = infer_stage(root)
+        return next_actions(DEFAULT_WORKFLOW, stage)
+    except Exception:
+        return []
+
+
+def _make_action_command(action: Action) -> click.Command:
+    @click.command(name=action.name)
+    @click.option("--prompt", "-p", default=None, help="Additional steering prompt")
+    def handler(prompt: str | None) -> None:
+        if action.human:
+            click.echo(f"{action.name} is a human action: {action.prompt_template}")
+            raise SystemExit(1)
+        root = git.repo_root()
+        stage = infer_stage(root)
+        available = next_actions(DEFAULT_WORKFLOW, stage)
+        if action not in available:
+            names = [a.name for a in available if not a.human]
+            click.echo(
+                f"error: '{action.name}' not available at stage '{stage}'. available: {names}",
+                err=True,
+            )
+            raise SystemExit(1)
+        ctx = task_context(root)
+        if prompt:
+            ctx["user_prompt"] = prompt
+        rendered = action.render_prompt(ctx)
+        if prompt and "{user_prompt}" not in action.prompt_template:
+            rendered = f"{rendered}\n\nAdditional direction: {prompt}"
+        click.echo(f"action: {action.name}")
+        click.echo(f"prompt: {rendered[:200]}{'...' if len(rendered) > 200 else ''}")
+        run_mod.run(rendered, interactive=action.interactive)
+
+    return handler
+
+
+class DoGroup(click.Group):
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        actions = _current_actions()
+        return [a.name for a in actions if not a.human]
+
+    def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
+        all_actions: dict[str, Action] = {}
+        for actions in DEFAULT_WORKFLOW.values():
+            for a in actions:
+                all_actions[a.name] = a
+        action = all_actions.get(cmd_name)
+        if action is None:
+            return None
+        return _make_action_command(action)
+
+
+@click.group()
+def app() -> None:
+    """Neomorphus: AI-assisted software development."""
 
 
 @app.command()
@@ -17,9 +72,9 @@ def status() -> None:
     """Infer and display the current task stage."""
     root = git.repo_root()
     stage = infer_stage(root)
-    typer.echo(f"stage: {stage}")
+    click.echo(f"stage: {stage}")
     for path in stage_artifacts(root, stage):
-        typer.echo(f"  {path.relative_to(root)}")
+        click.echo(f"  {path.relative_to(root)}")
 
 
 @app.command(name="next")
@@ -29,50 +84,22 @@ def next_command() -> None:
     stage = infer_stage(root)
     actions = next_actions(DEFAULT_WORKFLOW, stage)
     if not actions:
-        typer.echo(f"stage: {stage} — no actions available")
+        click.echo(f"stage: {stage} — no actions available")
         return
-    typer.echo(f"stage: {stage}")
+    click.echo(f"stage: {stage}")
     for action in actions:
         if action.human:
-            typer.echo(f"  {action.name} (human): {action.prompt_template}")
+            click.echo(f"  {action.name} (human): {action.prompt_template}")
         else:
-            typer.echo(f"  {action.name}: $ neo do {action.name}")
+            click.echo(f"  {action.name}: $ neo do {action.name}")
 
 
-@app.command(name="do")
-def do_command(
-    action_name: Annotated[str, typer.Argument(help="Name of the action to execute")],
-) -> None:
-    """Execute a workflow action by name."""
-    root = git.repo_root()
-    stage = infer_stage(root)
-    actions = next_actions(DEFAULT_WORKFLOW, stage)
-    action = next((a for a in actions if a.name == action_name), None)
-    if action is None:
-        available = [a.name for a in actions]
-        print(
-            f"error: action '{action_name}' not available at stage '{stage}'. "
-            f"available: {available}",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
-    if action.human:
-        print(
-            f"error: '{action_name}' is a human action: {action.prompt_template}",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
-    ctx = task_context(root)
-    prompt = action.render_prompt(ctx)
-    typer.echo(f"action: {action.name}")
-    typer.echo(f"prompt: {prompt[:200]}{'...' if len(prompt) > 200 else ''}")
-    run_mod.run(prompt, interactive=action.interactive)
+app.add_command(DoGroup("do", help="Execute a workflow action."))
 
 
 @app.command(name="run")
-def run_command(
-    prompt: Annotated[str, typer.Option("--prompt", "-p", help="Prompt for the coding agent")],
-) -> None:
+@click.option("--prompt", "-p", required=True, help="Prompt for the coding agent")
+def run_command(prompt: str) -> None:
     """Invoke Claude Code with a prompt at a clean commit."""
     run_mod.run(prompt)
 
