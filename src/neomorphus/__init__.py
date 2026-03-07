@@ -66,7 +66,7 @@ def do_command(
     prompt = action.render_prompt(ctx)
     typer.echo(f"action: {action.name}")
     typer.echo(f"prompt: {prompt[:200]}{'...' if len(prompt) > 200 else ''}")
-    run_mod.run(prompt)
+    run_mod.run(prompt, interactive=action.interactive)
 
 
 @app.command(name="run")

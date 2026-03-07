@@ -11,7 +11,15 @@ def _claude_env() -> dict[str, str]:
     return env
 
 
-def invoke_claude(prompt: str) -> int:
+def invoke_claude(prompt: str, *, interactive: bool = False) -> int:
+    if interactive:
+        proc = subprocess.Popen(
+            ["claude", "-p", prompt],
+            env=_claude_env(),
+        )
+        proc.wait()
+        return proc.returncode
+
     proc = subprocess.Popen(
         ["claude", "--print", "--output-format", "text", "-p", prompt],
         stdout=subprocess.PIPE,
@@ -27,13 +35,13 @@ def invoke_claude(prompt: str) -> int:
     return proc.returncode
 
 
-def run(prompt: str) -> None:
+def run(prompt: str, *, interactive: bool = False) -> None:
     if not git.is_clean():
         print("error: working tree is not clean; commit or stash changes first", file=sys.stderr)
         raise SystemExit(1)
 
     before = git.head_sha()
-    returncode = invoke_claude(prompt)
+    returncode = invoke_claude(prompt, interactive=interactive)
 
     if returncode != 0:
         print(f"error: claude exited with code {returncode}", file=sys.stderr)

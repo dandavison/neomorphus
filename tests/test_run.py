@@ -32,7 +32,7 @@ def test_clean_run_no_changes(tmp_path, monkeypatch):
     _init_repo(tmp_path)
     monkeypatch.chdir(tmp_path)
     before = git.head_sha()
-    monkeypatch.setattr(run_mod, "invoke_claude", lambda prompt: 0)
+    monkeypatch.setattr(run_mod, "invoke_claude", lambda prompt, **kw: 0)
     run("do nothing")
     assert git.head_sha() == before
 
@@ -42,7 +42,7 @@ def test_clean_run_with_changes(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     before = git.head_sha()
 
-    def fake_invoke(prompt):
+    def fake_invoke(prompt, **kw):
         (tmp_path / "new_file.txt").write_text("hello")
         return 0
 
