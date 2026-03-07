@@ -13,7 +13,7 @@ def _claude_env() -> dict[str, str]:
 
 def invoke_claude(prompt: str) -> int:
     proc = subprocess.Popen(
-        ["claude", "--print", "--output-format", "stream-json", "-p", prompt],
+        ["claude", "--print", "--output-format", "text", "-p", prompt],
         stdout=subprocess.PIPE,
         stderr=None,
         text=True,
