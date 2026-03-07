@@ -1,7 +1,7 @@
 from neomorphus.actions import Action
 
 action = Action(
-    name="select",
+    name="select_plan",
     prompt_template=(
         "The following plans have been proposed:\n\n{plans_summary}\n\n"
         "Evaluate each plan for correctness, completeness, and engineering quality. "
