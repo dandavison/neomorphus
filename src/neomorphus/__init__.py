@@ -51,6 +51,14 @@ def _make_action_command(action: Action) -> click.Command:
 
 
 class DoGroup(click.Group):
+    def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+        commands = self.list_commands(ctx)
+        if not commands:
+            formatter.write("No actions available at current stage.\n")
+            formatter.write("Run 'neo next' to see what to do.\n")
+            return
+        super().format_help(ctx, formatter)
+
     def list_commands(self, ctx: click.Context) -> list[str]:
         actions = _current_actions()
         return [a.name for a in actions if not a.human]
