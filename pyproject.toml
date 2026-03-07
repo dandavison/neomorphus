@@ -7,11 +7,24 @@ authors = [
     { name = "Dan Davison", email = "dandavison7@gmail.com" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = ["typer>=0.15"]
 
 [project.scripts]
 neomorphus = "neomorphus:main"
 
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.9"]
+
 [build-system]
 requires = ["uv_build>=0.9.18,<0.10.0"]
 build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 99
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
