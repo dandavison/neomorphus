@@ -1,7 +1,14 @@
+import os
 import subprocess
 import sys
 
 from neomorphus import git
+
+
+def _claude_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env.pop("CLAUDECODE", None)
+    return env
 
 
 def invoke_claude(prompt: str) -> int:
@@ -10,6 +17,7 @@ def invoke_claude(prompt: str) -> int:
         stdout=subprocess.PIPE,
         stderr=None,
         text=True,
+        env=_claude_env(),
     )
     assert proc.stdout is not None
     for line in proc.stdout:
