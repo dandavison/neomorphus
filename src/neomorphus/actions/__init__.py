@@ -28,4 +28,7 @@ def task_context(root: Path) -> dict[str, str]:
         ctx["plans_summary"] = "\n\n".join(
             f"--- Plan {p.stem} ---\n{p.read_text()}" for p in plans
         )
+        ctx["next_plan_number"] = str(len(plans) + 1)
+    else:
+        ctx["next_plan_number"] = "1"
     return ctx

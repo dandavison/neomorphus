@@ -5,6 +5,7 @@ action = Action(
     prompt_template=(
         "Read the task description in .task/task.md:\n\n{task}\n\n"
         "Propose a detailed plan to accomplish this task. "
-        "Write your plan to .task/plans/{{n}}.md where {{n}} is the next available number."
+        "Write your plan to .task/plans/{next_plan_number}.md. "
+        "Create the .task/plans/ directory if it does not exist."
     ),
 )
