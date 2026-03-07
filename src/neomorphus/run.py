@@ -5,6 +5,10 @@ import sys
 from neomorphus import git
 
 
+def _claude_cmd() -> str:
+    return os.environ.get("NEO_CLAUDE_CMD", "claude")
+
+
 def _claude_env() -> dict[str, str]:
     env = os.environ.copy()
     env.pop("CLAUDECODE", None)
@@ -12,16 +16,17 @@ def _claude_env() -> dict[str, str]:
 
 
 def invoke_claude(prompt: str, *, interactive: bool = False) -> int:
+    cmd = _claude_cmd()
     if interactive:
         proc = subprocess.Popen(
-            ["claude", "-p", prompt],
+            [cmd, "-p", prompt],
             env=_claude_env(),
         )
         proc.wait()
         return proc.returncode
 
     proc = subprocess.Popen(
-        ["claude", "--print", "--output-format", "text", "-p", prompt],
+        [cmd, "--print", "--output-format", "text", "-p", prompt],
         stdout=subprocess.PIPE,
         stderr=None,
         text=True,
