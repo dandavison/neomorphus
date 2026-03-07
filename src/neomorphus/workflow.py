@@ -12,7 +12,7 @@ Workflow = dict[Stage, list[Action]]
 DEFAULT_WORKFLOW: Workflow = {
     Stage.NO_TASK: [init],
     Stage.TASK_DEFINED: [evolve, evolve_interactive, plan],
-    Stage.PLANS_PROPOSED: [plan, select_plan],
+    Stage.PLANS_PROPOSED: [evolve, evolve_interactive, plan, select_plan],
     Stage.PLAN_SELECTED: [implement],
 }
 
