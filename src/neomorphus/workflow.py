@@ -1,57 +1,97 @@
-from collections.abc import Iterator
+from __future__ import annotations
 
-from neomorphus.actions import Action, load_actions
+import importlib.util
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from neomorphus.actions import Action
 from neomorphus.status import Stage
 
-Workflow = dict[Stage, list[tuple[Action, Stage]]]
 
-_actions = {(a.name, a.interactive): a for a in load_actions()}
+@dataclass(frozen=True)
+class Workflow:
+    transitions: dict[Stage, dict[Action, Stage]]
+    infer_stage: Callable[[Path], Stage]
+    _stages: frozenset[Stage] = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        stages: set[Stage] = set()
+        for src, edges in self.transitions.items():
+            stages.add(src)
+            for _action, dst in edges.items():
+                stages.add(dst)
+        object.__setattr__(self, "_stages", frozenset(stages))
+
+    def stage(self, root: Path) -> Stage:
+        result = self.infer_stage(root)
+        if result not in self._stages:
+            raise ValueError(f"infer_stage returned unknown stage: {result}")
+        return result
+
+    def next_actions(self, stage: Stage) -> list[Action]:
+        return list(self.transitions.get(stage, {}))
+
+    def action(self, name: str) -> Action | None:
+        for edges in self.transitions.values():
+            for action in edges:
+                if action.name == name:
+                    return action
+        return None
+
+    def target_stage(self, current: Stage, action_name: str) -> Stage | None:
+        edges = self.transitions.get(current, {})
+        for action, dst in edges.items():
+            if action.name == action_name:
+                return dst
+        return None
+
+    def _transitions(self) -> Iterator[tuple[Stage, str, Stage]]:
+        seen: set[tuple[str, str, str]] = set()
+        for stage, edges in self.transitions.items():
+            for action, target in edges.items():
+                key = (stage.name, action.name, target.name)
+                if key not in seen:
+                    seen.add(key)
+                    yield stage, action.name, target
+
+    def diagram_mermaid(self) -> str:
+        lines = ["stateDiagram-v2"]
+        for src, action_name, dst in self._transitions():
+            lines.append(f"    {src} --> {dst}: {action_name}")
+        return "\n".join(lines)
+
+    def diagram_d2(self) -> str:
+        lines = []
+        for src, action_name, dst in self._transitions():
+            lines.append(f"{src} -> {dst}: {action_name}")
+        return "\n".join(lines)
 
 
-def _a(name: str, *, interactive: bool = False) -> Action:
-    return _actions[(name, interactive)]
+def load_workflow(root: Path) -> Workflow:
+    neo_dir = root / ".neo"
+    wf_file = neo_dir / "workflow.py"
+    if wf_file.is_file():
+        return _load_custom_workflow(wf_file)
+    from neomorphus.default_workflow import DEFAULT_WORKFLOW
+
+    return DEFAULT_WORKFLOW
 
 
-DEFAULT_WORKFLOW: Workflow = {
-    Stage.NO_TASK: [(_a("init"), Stage.TASK_DEFINED)],
-    Stage.TASK_DEFINED: [
-        (_a("evolve"), Stage.TASK_DEFINED),
-        (_a("evolve", interactive=True), Stage.TASK_DEFINED),
-        (_a("plan"), Stage.PLANS_PROPOSED),
-    ],
-    Stage.PLANS_PROPOSED: [
-        (_a("evolve"), Stage.PLANS_PROPOSED),
-        (_a("evolve", interactive=True), Stage.PLANS_PROPOSED),
-        (_a("plan"), Stage.PLANS_PROPOSED),
-        (_a("select_plan"), Stage.PLAN_SELECTED),
-    ],
-    Stage.PLAN_SELECTED: [(_a("implement"), Stage.NO_TASK)],
-}
+def _load_custom_workflow(wf_file: Path) -> Workflow:
+    import sys
 
-
-def next_actions(workflow: Workflow, stage: Stage) -> list[Action]:
-    return [action for action, _ in workflow.get(stage, [])]
-
-
-def _transitions(workflow: Workflow) -> Iterator[tuple[Stage, str, Stage]]:
-    seen: set[tuple[Stage, str, Stage]] = set()
-    for stage, entries in workflow.items():
-        for action, target in entries:
-            key = (stage, action.name, target)
-            if key not in seen:
-                seen.add(key)
-                yield key
-
-
-def diagram_mermaid() -> str:
-    lines = ["stateDiagram-v2"]
-    for src, action, dst in _transitions(DEFAULT_WORKFLOW):
-        lines.append(f"    {src.value} --> {dst.value}: {action}")
-    return "\n".join(lines)
-
-
-def diagram_d2() -> str:
-    lines = []
-    for src, action, dst in _transitions(DEFAULT_WORKFLOW):
-        lines.append(f"{src.value} -> {dst.value}: {action}")
-    return "\n".join(lines)
+    spec = importlib.util.spec_from_file_location("_neo_workflow", wf_file)
+    if spec is None or spec.loader is None:
+        raise ValueError(f"cannot load {wf_file}")
+    mod = importlib.util.module_from_spec(spec)
+    prev = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        sys.dont_write_bytecode = prev
+    wf = getattr(mod, "workflow", None)
+    if not isinstance(wf, Workflow):
+        raise ValueError(f"{wf_file} must define a 'workflow' variable of type Workflow")
+    return wf

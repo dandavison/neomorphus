@@ -2,23 +2,22 @@ import click
 
 from neomorphus import git
 from neomorphus import run as run_mod
-from neomorphus.actions import Action, task_context
-from neomorphus.status import infer_stage, stage_artifacts
-from neomorphus.workflow import DEFAULT_WORKFLOW, diagram_d2, diagram_mermaid, next_actions
+from neomorphus.actions import Action, load_actions, task_context
+from neomorphus.workflow import Workflow, load_workflow
 
 
-def _current_actions() -> list[Action]:
+def _get_workflow() -> Workflow:
     try:
-        root = git.repo_root()
-        stage = infer_stage(root)
-        return next_actions(DEFAULT_WORKFLOW, stage)
+        return load_workflow(git.repo_root())
     except Exception:
-        return []
+        from neomorphus.default_workflow import DEFAULT_WORKFLOW
+
+        return DEFAULT_WORKFLOW
 
 
-def _make_action_command(
-    action: Action, interactive_action: Action | None = None
-) -> click.Command:
+def _make_action_command(action: Action) -> click.Command:
+    interactive_action = _find_interactive(action.name)
+
     @click.command(name=action.name)
     @click.option("--prompt", "-p", default=None, help="Additional steering prompt")
     @click.option("--interactive", "-i", is_flag=True, help="Run in interactive mode")
@@ -29,12 +28,13 @@ def _make_action_command(
             click.echo(f"{chosen.name} is a human action: {chosen.prompt_template}")
             raise SystemExit(1)
         root = git.repo_root()
-        stage = infer_stage(root)
-        available = next_actions(DEFAULT_WORKFLOW, stage)
-        if chosen not in available:
+        active_wf = load_workflow(root)
+        stage = active_wf.stage(root)
+        available = active_wf.next_actions(stage)
+        if action not in available:
             names = list(dict.fromkeys(a.name for a in available if not a.human))
             click.echo(
-                f"error: '{chosen.name}' not available at stage '{stage}'. available: {names}",
+                f"error: '{action.name}' not available at stage '{stage}'. available: {names}",
                 err=True,
             )
             raise SystemExit(1)
@@ -58,6 +58,11 @@ def _make_action_command(
     return handler
 
 
+def _find_interactive(name: str) -> Action | None:
+    actions = load_actions()
+    return getattr(actions, f"{name}_interactive", None)
+
+
 class DoGroup(click.Group):
     def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         commands = self.list_commands(ctx)
@@ -68,22 +73,21 @@ class DoGroup(click.Group):
         super().format_help(ctx, formatter)
 
     def list_commands(self, ctx: click.Context) -> list[str]:
-        actions = _current_actions()
+        wf = _get_workflow()
+        try:
+            root = git.repo_root()
+            stage = wf.stage(root)
+            actions = wf.next_actions(stage)
+        except Exception:
+            return []
         return list(dict.fromkeys(a.name for a in actions if not a.human))
 
     def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
-        normal: Action | None = None
-        interactive: Action | None = None
-        for entries in DEFAULT_WORKFLOW.values():
-            for a, _ in entries:
-                if a.name == cmd_name:
-                    if a.interactive:
-                        interactive = a
-                    else:
-                        normal = a
-        if normal is None:
+        wf = _get_workflow()
+        action = wf.action(cmd_name)
+        if action is None:
             return None
-        return _make_action_command(normal, interactive)
+        return _make_action_command(action)
 
 
 @click.group()
@@ -95,18 +99,18 @@ def app() -> None:
 def status() -> None:
     """Infer and display the current task stage."""
     root = git.repo_root()
-    stage = infer_stage(root)
+    wf = load_workflow(root)
+    stage = wf.stage(root)
     click.echo(f"stage: {stage}")
-    for path in stage_artifacts(root, stage):
-        click.echo(f"  {path.relative_to(root)}")
 
 
 @app.command(name="next")
 def next_command() -> None:
     """Show available actions for the current stage."""
     root = git.repo_root()
-    stage = infer_stage(root)
-    actions = next_actions(DEFAULT_WORKFLOW, stage)
+    wf = load_workflow(root)
+    stage = wf.stage(root)
+    actions = wf.next_actions(stage)
     if not actions:
         click.echo(f"stage: {stage} — no actions available")
         return
@@ -136,10 +140,11 @@ def workflow() -> None:
 )
 def diagram(fmt: str) -> None:
     """Print the workflow state machine as a diagram."""
+    wf = _get_workflow()
     if fmt == "d2":
-        click.echo(diagram_d2())
+        click.echo(wf.diagram_d2())
     else:
-        click.echo(diagram_mermaid())
+        click.echo(wf.diagram_mermaid())
 
 
 @app.command(name="run")

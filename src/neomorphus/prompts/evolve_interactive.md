@@ -1,7 +1,6 @@
 ---
-name: evolve
+name: evolve_interactive
 args: [target]
-interactive: true
 ---
 Read the file {{target}} and research the codebase to understand the relevant code, existing
 patterns, and prior art. Then work with the user to improve {{target}}. The objective of your

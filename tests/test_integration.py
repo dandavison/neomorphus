@@ -1,12 +1,21 @@
 """Integration tests exercising the full CLI pipeline with a fake claude."""
 
+import shutil
 from pathlib import Path
 
 from click.testing import CliRunner
 
 from neomorphus import app
-from neomorphus.status import Stage, infer_stage
+from neomorphus.default_workflow import (
+    DEFAULT_WORKFLOW,
+    NO_TASK,
+    PLAN_SELECTED,
+    PLANS_PROPOSED,
+    TASK_DEFINED,
+)
 from tests.conftest import FakeClaude
+
+_FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def _setup_task(root: Path, task_text: str = "fix the widget") -> None:
@@ -25,7 +34,7 @@ def _commit_all(root: Path, msg: str = "setup") -> None:
 def test_plan_creates_plan_file(git_repo: Path, fake_claude: FakeClaude) -> None:
     _setup_task(git_repo)
     _commit_all(git_repo)
-    assert infer_stage(git_repo) == Stage.TASK_DEFINED
+    assert DEFAULT_WORKFLOW.stage(git_repo) == TASK_DEFINED
 
     fake_claude.script(
         actions=[{"write": ".task/plans/1.md", "content": "Step 1: do the thing"}],
@@ -37,7 +46,7 @@ def test_plan_creates_plan_file(git_repo: Path, fake_claude: FakeClaude) -> None
     assert result.exit_code == 0, result.output
 
     assert (git_repo / ".task" / "plans" / "1.md").exists()
-    assert infer_stage(git_repo) == Stage.PLANS_PROPOSED
+    assert DEFAULT_WORKFLOW.stage(git_repo) == PLANS_PROPOSED
 
     call = fake_claude.call()
     assert "fix the widget" in call["prompt"]
@@ -77,7 +86,7 @@ def test_select_plan_transitions_to_plan_selected(git_repo: Path, fake_claude: F
     plans_dir.mkdir(parents=True)
     (plans_dir / "1.md").write_text("Plan A")
     _commit_all(git_repo)
-    assert infer_stage(git_repo) == Stage.PLANS_PROPOSED
+    assert DEFAULT_WORKFLOW.stage(git_repo) == PLANS_PROPOSED
 
     fake_claude.script(
         actions=[{"write": ".task/plan.md", "content": "Plan A\nSelected."}],
@@ -86,14 +95,14 @@ def test_select_plan_transitions_to_plan_selected(git_repo: Path, fake_claude: F
     runner = CliRunner()
     result = runner.invoke(app, ["do", "select_plan"])
     assert result.exit_code == 0, result.output
-    assert infer_stage(git_repo) == Stage.PLAN_SELECTED
+    assert DEFAULT_WORKFLOW.stage(git_repo) == PLAN_SELECTED
 
 
 def test_implement_sends_plan_in_prompt(git_repo: Path, fake_claude: FakeClaude) -> None:
     _setup_task(git_repo)
     (git_repo / ".task" / "plan.md").write_text("The plan")
     _commit_all(git_repo)
-    assert infer_stage(git_repo) == Stage.PLAN_SELECTED
+    assert DEFAULT_WORKFLOW.stage(git_repo) == PLAN_SELECTED
 
     fake_claude.script()
 
@@ -106,8 +115,7 @@ def test_implement_sends_plan_in_prompt(git_repo: Path, fake_claude: FakeClaude)
 
 
 def test_action_unavailable_at_wrong_stage(git_repo: Path) -> None:
-    # no-task stage: plan should not be available
-    assert infer_stage(git_repo) == Stage.NO_TASK
+    assert DEFAULT_WORKFLOW.stage(git_repo) == NO_TASK
 
     runner = CliRunner()
     result = runner.invoke(app, ["do", "plan"])
@@ -142,3 +150,47 @@ def test_next_shows_actions(git_repo: Path) -> None:
     assert result.exit_code == 0
     assert "evolve" in result.output
     assert "plan" in result.output
+
+
+def test_custom_workflow(git_repo: Path, fake_claude: FakeClaude) -> None:
+    """User defines a custom 2-stage workflow in .neo/workflow.py."""
+    shutil.copytree(_FIXTURES / "draft_workflow" / ".neo", git_repo / ".neo")
+    _commit_all(git_repo)
+
+    runner = CliRunner()
+
+    # 3. neo discovers custom workflow; stage is "no-draft"
+    result = runner.invoke(app, ["status"])
+    assert result.exit_code == 0, result.output
+    assert "no-draft" in result.output
+
+    # 4. "draft" action is available
+    result = runner.invoke(app, ["next"])
+    assert result.exit_code == 0, result.output
+    assert "draft" in result.output
+
+    # 5. Run the draft action
+    fake_claude.script(
+        actions=[{"write": ".task/draft.md", "content": "First draft content"}],
+    )
+    result = runner.invoke(app, ["do", "draft"])
+    assert result.exit_code == 0, result.output
+
+    # 6. Stage transitions to "draft-ready"
+    assert (git_repo / ".task" / "draft.md").exists()
+    result = runner.invoke(app, ["status"])
+    assert result.exit_code == 0, result.output
+    assert "draft-ready" in result.output
+
+    # 7. "finalize" action is now available, "draft" action is not
+    result = runner.invoke(app, ["next"])
+    assert result.exit_code == 0, result.output
+    assert "neo do finalize" in result.output
+    assert "neo do draft" not in result.output
+
+    # 8. Run finalize; prompt includes draft content
+    fake_claude.script()
+    result = runner.invoke(app, ["do", "finalize"])
+    assert result.exit_code == 0, result.output
+    call = fake_claude.calls()[-1]
+    assert "First draft content" in call["prompt"]

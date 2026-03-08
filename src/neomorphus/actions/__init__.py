@@ -1,4 +1,5 @@
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,7 +15,6 @@ class Action:
     name: str
     prompt_template: str
     human: bool = False
-    interactive: bool = False
     args: tuple[str, ...] = ()
 
     def render_prompt(self, context: dict[str, str]) -> str:
@@ -22,6 +22,25 @@ class Action:
             lambda m: context.get(m.group(1), m.group(0)),
             self.prompt_template,
         )
+
+
+class Actions:
+    """Namespace of actions loaded from a prompts directory.
+
+    Actions are available as attributes (e.g. actions.plan).
+    Iterating yields all actions.
+    """
+
+    def __init__(self, action_list: list[Action]) -> None:
+        self._all = list(action_list)
+        for a in action_list:
+            setattr(self, a.name, a)
+
+    def __getattr__(self, name: str) -> Action:
+        raise AttributeError(f"no action named '{name}'")
+
+    def __iter__(self) -> Iterator[Action]:
+        return iter(self._all)
 
 
 def load_action(path: Path) -> Action:
@@ -35,25 +54,23 @@ def load_action(path: Path) -> Action:
         name=meta["name"],
         prompt_template=prompt,
         human=meta.get("human", False),
-        interactive=meta.get("interactive", False),
         args=tuple(meta.get("args", ())),
     )
 
 
-def load_actions(directory: Path | None = None) -> list[Action]:
+def load_actions(directory: Path | None = None) -> Actions:
     d = directory or _PROMPTS_DIR
-    return [load_action(p) for p in sorted(d.glob("*.md"))]
+    return Actions([load_action(p) for p in sorted(d.glob("*.md"))])
 
 
 def task_context(root: Path) -> dict[str, str]:
     ctx: dict[str, str] = {}
-    task_file = root / ".task" / "task.md"
-    if task_file.is_file():
-        ctx["task"] = task_file.read_text()
-    plan_file = root / ".task" / "plan.md"
-    if plan_file.is_file():
-        ctx["plan"] = plan_file.read_text()
-    plans_dir = root / ".task" / "plans"
+    task_dir = root / ".task"
+    if not task_dir.is_dir():
+        return ctx
+    for p in sorted(task_dir.glob("*.md")):
+        ctx[p.stem] = p.read_text()
+    plans_dir = task_dir / "plans"
     if plans_dir.is_dir():
         plans = sorted(plans_dir.glob("*.md"))
         for p in plans:
