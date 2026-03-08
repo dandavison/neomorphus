@@ -5,7 +5,7 @@ from neomorphus import Stage, Workflow, load_actions
 draft_ready = Stage("draft-ready")
 no_draft = Stage("no-draft")
 
-actions = load_actions(Path(__file__).parent / "prompts")
+actions = load_actions(Path(__file__).parent / "actions")
 
 
 def infer_stage(root: Path) -> Stage:

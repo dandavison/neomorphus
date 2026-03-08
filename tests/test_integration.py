@@ -1,6 +1,5 @@
 """Integration tests exercising the full CLI pipeline with a fake claude."""
 
-import shutil
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -14,8 +13,6 @@ from neomorphus.workflows.default import (
     TASK_DEFINED,
 )
 from tests.conftest import FakeClaude
-
-_FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def _setup_task(root: Path, task_text: str = "fix the widget") -> None:
@@ -150,47 +147,3 @@ def test_next_shows_actions(git_repo: Path) -> None:
     assert result.exit_code == 0
     assert "evolve" in result.output
     assert "plan" in result.output
-
-
-def test_custom_workflow(git_repo: Path, fake_claude: FakeClaude) -> None:
-    """User defines a custom 2-stage workflow in .neo/workflow.py."""
-    shutil.copytree(_FIXTURES / "draft_workflow" / ".neo", git_repo / ".neo")
-    _commit_all(git_repo)
-
-    runner = CliRunner()
-
-    # 3. neo discovers custom workflow; stage is "no-draft"
-    result = runner.invoke(app, ["status"])
-    assert result.exit_code == 0, result.output
-    assert "no-draft" in result.output
-
-    # 4. "draft" action is available
-    result = runner.invoke(app, ["next"])
-    assert result.exit_code == 0, result.output
-    assert "draft" in result.output
-
-    # 5. Run the draft action
-    fake_claude.script(
-        actions=[{"write": ".task/draft.md", "content": "First draft content"}],
-    )
-    result = runner.invoke(app, ["do", "draft"])
-    assert result.exit_code == 0, result.output
-
-    # 6. Stage transitions to "draft-ready"
-    assert (git_repo / ".task" / "draft.md").exists()
-    result = runner.invoke(app, ["status"])
-    assert result.exit_code == 0, result.output
-    assert "draft-ready" in result.output
-
-    # 7. "finalize" action is now available, "draft" action is not
-    result = runner.invoke(app, ["next"])
-    assert result.exit_code == 0, result.output
-    assert "neo do finalize" in result.output
-    assert "neo do draft" not in result.output
-
-    # 8. Run finalize; prompt includes draft content
-    fake_claude.script()
-    result = runner.invoke(app, ["do", "finalize"])
-    assert result.exit_code == 0, result.output
-    call = fake_claude.calls()[-1]
-    assert "First draft content" in call["prompt"]
