@@ -61,7 +61,7 @@ def invoke_claude(prompt: str, *, interactive: bool = False) -> int:
         return 0  # unreachable, satisfies type checker
 
     proc = subprocess.Popen(
-        [cmd, "--print", "--output-format", "stream-json", "-p", "--verbose", prompt],
+        [cmd, "--print", "--verbose", "--output-format", "stream-json", "-p", prompt],
         stdout=subprocess.PIPE,
         stderr=None,
         text=True,

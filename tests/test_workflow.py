@@ -2,7 +2,7 @@ from pathlib import Path
 
 from neomorphus.actions import Action, task_context
 from neomorphus.status import Stage
-from neomorphus.workflow import DEFAULT_WORKFLOW, next_actions
+from neomorphus.workflow import DEFAULT_WORKFLOW, diagram_d2, diagram_mermaid, next_actions
 
 
 def test_every_stage_has_actions():
@@ -12,8 +12,8 @@ def test_every_stage_has_actions():
 
 
 def test_action_names_unique_per_stage():
-    for stage, actions in DEFAULT_WORKFLOW.items():
-        keys = [(a.name, a.interactive) for a in actions]
+    for stage, entries in DEFAULT_WORKFLOW.items():
+        keys = [(a.name, a.interactive) for a, _ in entries]
         assert len(keys) == len(set(keys)), f"duplicate actions at {stage}"
 
 
@@ -49,3 +49,16 @@ def test_task_context(tmp_path: Path):
     assert ctx["plan_2"] == "plan B"
     assert "Plan 1" in ctx["plans_summary"]
     assert "Plan 2" in ctx["plans_summary"]
+
+
+def test_diagram_mermaid():
+    out = diagram_mermaid()
+    assert out.startswith("stateDiagram-v2")
+    assert "no-task --> task-defined: init" in out
+    assert "plan-selected --> no-task: implement" in out
+
+
+def test_diagram_d2():
+    out = diagram_d2()
+    assert "no-task -> task-defined: init" in out
+    assert "plan-selected -> no-task: implement" in out

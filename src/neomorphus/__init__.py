@@ -4,7 +4,7 @@ from neomorphus import git
 from neomorphus import run as run_mod
 from neomorphus.actions import Action, task_context
 from neomorphus.status import infer_stage, stage_artifacts
-from neomorphus.workflow import DEFAULT_WORKFLOW, next_actions
+from neomorphus.workflow import DEFAULT_WORKFLOW, diagram_d2, diagram_mermaid, next_actions
 
 
 def _current_actions() -> list[Action]:
@@ -74,8 +74,8 @@ class DoGroup(click.Group):
     def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
         normal: Action | None = None
         interactive: Action | None = None
-        for actions in DEFAULT_WORKFLOW.values():
-            for a in actions:
+        for entries in DEFAULT_WORKFLOW.values():
+            for a, _ in entries:
                 if a.name == cmd_name:
                     if a.interactive:
                         interactive = a
@@ -119,6 +119,27 @@ def next_command() -> None:
 
 
 app.add_command(DoGroup("do", help="Execute a workflow action."))
+
+
+@app.group()
+def workflow() -> None:
+    """Workflow inspection commands."""
+
+
+@workflow.command()
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["mermaid", "d2"]),
+    default="mermaid",
+    help="Diagram format",
+)
+def diagram(fmt: str) -> None:
+    """Print the workflow state machine as a diagram."""
+    if fmt == "d2":
+        click.echo(diagram_d2())
+    else:
+        click.echo(diagram_mermaid())
 
 
 @app.command(name="run")

@@ -71,6 +71,40 @@ def test_evolve_with_steering_prompt(git_repo: Path, fake_claude: FakeClaude) ->
     assert "focus on errors" in call["prompt"]
 
 
+def test_select_plan_transitions_to_plan_selected(git_repo: Path, fake_claude: FakeClaude) -> None:
+    _setup_task(git_repo)
+    plans_dir = git_repo / ".task" / "plans"
+    plans_dir.mkdir(parents=True)
+    (plans_dir / "1.md").write_text("Plan A")
+    _commit_all(git_repo)
+    assert infer_stage(git_repo) == Stage.PLANS_PROPOSED
+
+    fake_claude.script(
+        actions=[{"write": ".task/plan.md", "content": "Plan A\nSelected."}],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["do", "select_plan"])
+    assert result.exit_code == 0, result.output
+    assert infer_stage(git_repo) == Stage.PLAN_SELECTED
+
+
+def test_implement_sends_plan_in_prompt(git_repo: Path, fake_claude: FakeClaude) -> None:
+    _setup_task(git_repo)
+    (git_repo / ".task" / "plan.md").write_text("The plan")
+    _commit_all(git_repo)
+    assert infer_stage(git_repo) == Stage.PLAN_SELECTED
+
+    fake_claude.script()
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["do", "implement"])
+    assert result.exit_code == 0, result.output
+
+    call = fake_claude.call()
+    assert "The plan" in call["prompt"]
+
+
 def test_action_unavailable_at_wrong_stage(git_repo: Path) -> None:
     # no-task stage: plan should not be available
     assert infer_stage(git_repo) == Stage.NO_TASK
