@@ -1,17 +1,28 @@
+import re
 from dataclasses import dataclass
 from pathlib import Path
+
+_PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+_MUSTACHE_RE = re.compile(r"\{\{(\w+)\}\}")
 
 
 @dataclass(frozen=True)
 class Action:
     name: str
-    prompt_template: str
+    prompt_file: str
     human: bool = False
     interactive: bool = False
     args: tuple[str, ...] = ()
 
+    @property
+    def prompt_template(self) -> str:
+        return (_PROMPTS_DIR / self.prompt_file).read_text()
+
     def render_prompt(self, context: dict[str, str]) -> str:
-        return self.prompt_template.format(**context)
+        return _MUSTACHE_RE.sub(
+            lambda m: context.get(m.group(1), m.group(0)),
+            self.prompt_template,
+        )
 
 
 def task_context(root: Path) -> dict[str, str]:

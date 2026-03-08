@@ -23,13 +23,17 @@ def test_next_actions_unknown_stage():
 
 
 def test_render_prompt():
-    action = Action(name="test", prompt_template="Task: {task}")
-    assert action.render_prompt({"task": "fix the bug"}) == "Task: fix the bug"
+    action = Action(name="plan", prompt_file="plan.md")
+    rendered = action.render_prompt(
+        {"task": "fix the bug", "next_plan_number": "1"},
+    )
+    assert "fix the bug" in rendered
 
 
 def test_render_prompt_with_args():
-    action = Action(name="evolve", args=("target",), prompt_template="Rewrite {target}")
-    assert action.render_prompt({"target": ".task/task.md"}) == "Rewrite .task/task.md"
+    action = Action(name="evolve", args=("target",), prompt_file="evolve.md")
+    rendered = action.render_prompt({"target": ".task/task.md"})
+    assert ".task/task.md" in rendered
 
 
 def test_task_context(tmp_path: Path):

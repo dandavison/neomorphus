@@ -43,7 +43,7 @@ def _make_action_command(
         if prompt:
             ctx["user_prompt"] = prompt
         rendered = chosen.render_prompt(ctx)
-        if prompt and "{user_prompt}" not in chosen.prompt_template:
+        if prompt and "{{user_prompt}}" not in chosen.prompt_template:
             rendered = f"{rendered}\n\nAdditional direction: {prompt}"
         if dry_run:
             click.echo(rendered)
