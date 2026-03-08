@@ -1,10 +1,9 @@
 from neomorphus.actions import Action
-from neomorphus.actions.evolve import action as evolve
-from neomorphus.actions.evolve import interactive as evolve_interactive
-from neomorphus.actions.implement import action as implement
-from neomorphus.actions.init import action as init
-from neomorphus.actions.plan import action as plan
-from neomorphus.actions.select_plan import action as select_plan
+from neomorphus.actions.evolve import evolve, evolve_interactive
+from neomorphus.actions.implement import implement
+from neomorphus.actions.init import init
+from neomorphus.actions.plan import plan
+from neomorphus.actions.select_plan import select_plan
 from neomorphus.status import Stage
 
 Workflow = dict[Stage, list[Action]]

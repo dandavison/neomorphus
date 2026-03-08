@@ -13,8 +13,8 @@ def test_every_stage_has_actions():
 
 def test_action_names_unique_per_stage():
     for stage, actions in DEFAULT_WORKFLOW.items():
-        names = [a.name for a in actions]
-        assert len(names) == len(set(names)), f"duplicate action names at {stage}"
+        keys = [(a.name, a.interactive) for a in actions]
+        assert len(keys) == len(set(keys)), f"duplicate actions at {stage}"
 
 
 def test_next_actions_unknown_stage():

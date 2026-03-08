@@ -1,9 +1,14 @@
+from textwrap import dedent
+
 from neomorphus.actions import Action
 
-action = Action(
+implement = Action(
     name="implement",
-    prompt_template=(
-        "Implement the following plan:\n\n{plan}\n\n"
-        "Follow the plan precisely. Commit your work when done."
-    ),
+    prompt_template=dedent("""
+        Implement the following plan:
+
+        {plan}
+
+        Follow the plan precisely. Commit your work when done.
+        """),
 )

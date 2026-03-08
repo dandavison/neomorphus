@@ -17,20 +17,17 @@ def _claude_env() -> dict[str, str]:
 
 def invoke_claude(prompt: str, *, interactive: bool = False) -> int:
     cmd = _claude_cmd()
+    env = _claude_env()
     if interactive:
-        proc = subprocess.Popen(
-            [cmd, "-p", prompt],
-            env=_claude_env(),
-        )
-        proc.wait()
-        return proc.returncode
+        os.execvpe(cmd, [cmd, prompt], env)
+        return 0  # unreachable, satisfies type checker
 
     proc = subprocess.Popen(
         [cmd, "--print", "--output-format", "text", "-p", prompt],
         stdout=subprocess.PIPE,
         stderr=None,
         text=True,
-        env=_claude_env(),
+        env=env,
     )
     assert proc.stdout is not None
     for line in proc.stdout:
@@ -45,8 +42,12 @@ def run(prompt: str, *, interactive: bool = False) -> None:
         print("error: working tree is not clean; commit or stash changes first", file=sys.stderr)
         raise SystemExit(1)
 
+    if interactive:
+        invoke_claude(prompt, interactive=True)  # exec, does not return
+        return  # unreachable
+
     before = git.head_sha()
-    returncode = invoke_claude(prompt, interactive=interactive)
+    returncode = invoke_claude(prompt)
 
     if returncode != 0:
         print(f"error: claude exited with code {returncode}", file=sys.stderr)

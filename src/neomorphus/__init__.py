@@ -16,20 +16,24 @@ def _current_actions() -> list[Action]:
         return []
 
 
-def _make_action_command(action: Action) -> click.Command:
+def _make_action_command(
+    action: Action, interactive_action: Action | None = None
+) -> click.Command:
     @click.command(name=action.name)
     @click.option("--prompt", "-p", default=None, help="Additional steering prompt")
-    def handler(prompt: str | None, **kwargs: str) -> None:
-        if action.human:
-            click.echo(f"{action.name} is a human action: {action.prompt_template}")
+    @click.option("--interactive", "-i", is_flag=True, help="Run in interactive mode")
+    def handler(prompt: str | None, interactive: bool, **kwargs: str) -> None:
+        chosen = interactive_action if interactive and interactive_action else action
+        if chosen.human:
+            click.echo(f"{chosen.name} is a human action: {chosen.prompt_template}")
             raise SystemExit(1)
         root = git.repo_root()
         stage = infer_stage(root)
         available = next_actions(DEFAULT_WORKFLOW, stage)
-        if action not in available:
-            names = [a.name for a in available if not a.human]
+        if chosen not in available:
+            names = list(dict.fromkeys(a.name for a in available if not a.human))
             click.echo(
-                f"error: '{action.name}' not available at stage '{stage}'. available: {names}",
+                f"error: '{chosen.name}' not available at stage '{stage}'. available: {names}",
                 err=True,
             )
             raise SystemExit(1)
@@ -37,15 +41,15 @@ def _make_action_command(action: Action) -> click.Command:
         ctx.update(kwargs)
         if prompt:
             ctx["user_prompt"] = prompt
-        rendered = action.render_prompt(ctx)
-        if prompt and "{user_prompt}" not in action.prompt_template:
+        rendered = chosen.render_prompt(ctx)
+        if prompt and "{user_prompt}" not in chosen.prompt_template:
             rendered = f"{rendered}\n\nAdditional direction: {prompt}"
-        click.echo(f"action: {action.name}")
+        click.echo(f"action: {chosen.name}")
         click.echo(f"prompt: {rendered[:200]}{'...' if len(rendered) > 200 else ''}")
-        run_mod.run(rendered, interactive=action.interactive)
+        run_mod.run(rendered, interactive=interactive)
 
     for arg_name in action.args:
-        handler.params.insert(0, click.Argument([arg_name]))
+        handler.params.insert(0, click.Argument([arg_name], type=click.Path()))
 
     return handler
 
@@ -61,17 +65,21 @@ class DoGroup(click.Group):
 
     def list_commands(self, ctx: click.Context) -> list[str]:
         actions = _current_actions()
-        return [a.name for a in actions if not a.human]
+        return list(dict.fromkeys(a.name for a in actions if not a.human))
 
     def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
-        all_actions: dict[str, Action] = {}
+        normal: Action | None = None
+        interactive: Action | None = None
         for actions in DEFAULT_WORKFLOW.values():
             for a in actions:
-                all_actions[a.name] = a
-        action = all_actions.get(cmd_name)
-        if action is None:
+                if a.name == cmd_name:
+                    if a.interactive:
+                        interactive = a
+                    else:
+                        normal = a
+        if normal is None:
             return None
-        return _make_action_command(action)
+        return _make_action_command(normal, interactive)
 
 
 @click.group()
