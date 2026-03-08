@@ -5,8 +5,8 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from neomorphus import app
-from neomorphus.default_workflow import (
+from neomorphus._cli import app
+from neomorphus.workflows.default import (
     DEFAULT_WORKFLOW,
     NO_TASK,
     PLAN_SELECTED,

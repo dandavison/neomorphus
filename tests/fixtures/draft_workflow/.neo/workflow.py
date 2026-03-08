@@ -1,8 +1,6 @@
 from pathlib import Path
 
-from neomorphus.actions import load_actions
-from neomorphus.status import Stage
-from neomorphus.workflow import Workflow
+from neomorphus import Stage, Workflow, load_actions
 
 draft_ready = Stage("draft-ready")
 no_draft = Stage("no-draft")

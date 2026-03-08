@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from neomorphus.actions import Action, load_actions, task_context
-from neomorphus.default_workflow import DEFAULT_WORKFLOW
-from neomorphus.status import Stage
+from neomorphus._actions import Action, load_actions, task_context
+from neomorphus._status import Stage
+from neomorphus.workflows.default import DEFAULT_WORKFLOW
 
 
 def test_every_stage_has_actions() -> None:

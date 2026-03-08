@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-_PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+_DEFAULT_ACTIONS_DIR = Path(__file__).parent / "workflows" / "default"
 _MUSTACHE_RE = re.compile(r"\{\{(\w+)\}\}")
 _FRONTMATTER_RE = re.compile(r"\A---\n(.+?)\n---\n(.*)", re.DOTALL)
 
@@ -25,7 +25,7 @@ class Action:
 
 
 class Actions:
-    """Namespace of actions loaded from a prompts directory.
+    """Namespace of actions loaded from a directory of markdown files.
 
     Actions are available as attributes (e.g. actions.plan).
     Iterating yields all actions.
@@ -59,7 +59,7 @@ def load_action(path: Path) -> Action:
 
 
 def load_actions(directory: Path | None = None) -> Actions:
-    d = directory or _PROMPTS_DIR
+    d = directory or _DEFAULT_ACTIONS_DIR
     return Actions([load_action(p) for p in sorted(d.glob("*.md"))])
 
 

@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 
-from neomorphus import git
+from neomorphus import _git as git
 
 
 def _claude_cmd() -> str:

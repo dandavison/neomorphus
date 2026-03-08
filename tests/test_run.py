@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from neomorphus import git
-from neomorphus import run as run_mod
-from neomorphus.run import run
+from neomorphus import _git as git
+from neomorphus import _run as run_mod
+from neomorphus._run import run
 
 
 def test_dirty_repo_rejected(git_repo: Path) -> None:

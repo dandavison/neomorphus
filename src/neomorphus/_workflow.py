@@ -5,8 +5,8 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from neomorphus.actions import Action
-from neomorphus.status import Stage
+from neomorphus._actions import Action
+from neomorphus._status import Stage
 
 
 @dataclass(frozen=True)
@@ -73,7 +73,7 @@ def load_workflow(root: Path) -> Workflow:
     wf_file = neo_dir / "workflow.py"
     if wf_file.is_file():
         return _load_custom_workflow(wf_file)
-    from neomorphus.default_workflow import DEFAULT_WORKFLOW
+    from neomorphus.workflows.default import DEFAULT_WORKFLOW
 
     return DEFAULT_WORKFLOW
 

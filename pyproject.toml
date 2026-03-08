@@ -13,8 +13,8 @@ dependencies = [
 ]
 
 [project.scripts]
-neomorphus = "neomorphus:main"
-neo = "neomorphus:main"
+neomorphus = "neomorphus._cli:main"
+neo = "neomorphus._cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.9"]

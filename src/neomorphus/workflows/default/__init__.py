@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from neomorphus.actions import load_actions
-from neomorphus.status import Stage
-from neomorphus.workflow import Workflow
+from neomorphus._actions import load_actions
+from neomorphus._status import Stage
+from neomorphus._workflow import Workflow
 
 PLAN_SELECTED = Stage("plan-selected")
 PLANS_PROPOSED = Stage("plans-proposed")

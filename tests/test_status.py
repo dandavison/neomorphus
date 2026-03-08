@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from neomorphus.default_workflow import (
+from neomorphus.workflows.default import (
     NO_TASK,
     PLAN_SELECTED,
     PLANS_PROPOSED,
