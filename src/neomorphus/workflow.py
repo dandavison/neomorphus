@@ -1,29 +1,31 @@
 from collections.abc import Iterator
 
-from neomorphus.actions import Action
-from neomorphus.actions.evolve import evolve, evolve_interactive
-from neomorphus.actions.implement import implement
-from neomorphus.actions.init import init
-from neomorphus.actions.plan import plan
-from neomorphus.actions.select_plan import select_plan
+from neomorphus.actions import Action, load_actions
 from neomorphus.status import Stage
 
 Workflow = dict[Stage, list[tuple[Action, Stage]]]
 
+_actions = {(a.name, a.interactive): a for a in load_actions()}
+
+
+def _a(name: str, *, interactive: bool = False) -> Action:
+    return _actions[(name, interactive)]
+
+
 DEFAULT_WORKFLOW: Workflow = {
-    Stage.NO_TASK: [(init, Stage.TASK_DEFINED)],
+    Stage.NO_TASK: [(_a("init"), Stage.TASK_DEFINED)],
     Stage.TASK_DEFINED: [
-        (evolve, Stage.TASK_DEFINED),
-        (evolve_interactive, Stage.TASK_DEFINED),
-        (plan, Stage.PLANS_PROPOSED),
+        (_a("evolve"), Stage.TASK_DEFINED),
+        (_a("evolve", interactive=True), Stage.TASK_DEFINED),
+        (_a("plan"), Stage.PLANS_PROPOSED),
     ],
     Stage.PLANS_PROPOSED: [
-        (evolve, Stage.PLANS_PROPOSED),
-        (evolve_interactive, Stage.PLANS_PROPOSED),
-        (plan, Stage.PLANS_PROPOSED),
-        (select_plan, Stage.PLAN_SELECTED),
+        (_a("evolve"), Stage.PLANS_PROPOSED),
+        (_a("evolve", interactive=True), Stage.PLANS_PROPOSED),
+        (_a("plan"), Stage.PLANS_PROPOSED),
+        (_a("select_plan"), Stage.PLAN_SELECTED),
     ],
-    Stage.PLAN_SELECTED: [(implement, Stage.NO_TASK)],
+    Stage.PLAN_SELECTED: [(_a("implement"), Stage.NO_TASK)],
 }
 
 

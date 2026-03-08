@@ -1,3 +1,6 @@
+---
+name: select_plan
+---
 The following plans have been proposed:
 
 {{plans_summary}}

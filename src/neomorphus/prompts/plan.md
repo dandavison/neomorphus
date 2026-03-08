@@ -1,3 +1,6 @@
+---
+name: plan
+---
 Read the task description in .task/task.md:
 
 {{task}}

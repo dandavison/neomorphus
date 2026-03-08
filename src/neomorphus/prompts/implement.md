@@ -1,3 +1,6 @@
+---
+name: implement
+---
 Implement the following plan:
 
 {{plan}}
