@@ -22,8 +22,8 @@ def _make_action_command(
     @click.command(name=action.name)
     @click.option("--prompt", "-p", default=None, help="Additional steering prompt")
     @click.option("--interactive", "-i", is_flag=True, help="Run in interactive mode")
-    @click.option("--show-prompt", is_flag=True, help="Print the rendered prompt and exit")
-    def handler(prompt: str | None, interactive: bool, show_prompt: bool, **kwargs: str) -> None:
+    @click.option("--dry-run", "-n", is_flag=True, help="Print the rendered prompt and exit")
+    def handler(prompt: str | None, interactive: bool, dry_run: bool, **kwargs: str) -> None:
         chosen = interactive_action if interactive and interactive_action else action
         if chosen.human:
             click.echo(f"{chosen.name} is a human action: {chosen.prompt_template}")
@@ -45,7 +45,7 @@ def _make_action_command(
         rendered = chosen.render_prompt(ctx)
         if prompt and "{user_prompt}" not in chosen.prompt_template:
             rendered = f"{rendered}\n\nAdditional direction: {prompt}"
-        if show_prompt:
+        if dry_run:
             click.echo(rendered)
             return
         click.echo(f"action: {chosen.name}")
@@ -144,10 +144,10 @@ def diagram(fmt: str) -> None:
 
 @app.command(name="run")
 @click.option("--prompt", "-p", required=True, help="Prompt for the coding agent")
-@click.option("--show-prompt", is_flag=True, help="Print the prompt and exit")
-def run_command(prompt: str, show_prompt: bool) -> None:
+@click.option("--dry-run", "-n", is_flag=True, help="Print the prompt without executing")
+def run_command(prompt: str, dry_run: bool) -> None:
     """Invoke Claude Code with a prompt at a clean commit."""
-    if show_prompt:
+    if dry_run:
         click.echo(prompt)
         return
     run_mod.run(prompt)
