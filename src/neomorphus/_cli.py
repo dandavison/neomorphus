@@ -125,6 +125,56 @@ def next_command() -> None:
 app.add_command(DoGroup("do", help="Execute a workflow action."))
 
 
+_INIT_WORKFLOW = """\
+from pathlib import Path
+
+from neomorphus import Stage, Workflow, load_actions
+
+TODO = Stage("todo")
+DONE = Stage("done")
+
+actions = load_actions(Path(__file__).parent / "actions")
+
+
+def infer_stage(root: Path) -> Stage:
+    if (root / ".task/done").exists():
+        return DONE
+    return TODO
+
+
+workflow = Workflow(
+    transitions={
+        TODO: {actions.start: DONE},
+    },
+    infer_stage=infer_stage,
+)
+"""
+
+_INIT_ACTION = """\
+---
+name: start
+---
+Read .task/task.md and carry out the task. When done, touch .task/done.
+"""
+
+
+@app.command()
+def init() -> None:
+    """Scaffold a .neo/ custom workflow in the current directory."""
+    root = git.repo_root()
+    neo_dir = root / ".neo"
+    if neo_dir.exists():
+        click.echo("error: .neo/ already exists", err=True)
+        raise SystemExit(1)
+    actions_dir = neo_dir / "actions"
+    actions_dir.mkdir(parents=True)
+    (neo_dir / "workflow.py").write_text(_INIT_WORKFLOW)
+    (actions_dir / "start.md").write_text(_INIT_ACTION)
+    click.echo("created .neo/workflow.py")
+    click.echo("created .neo/actions/start.md")
+    click.echo("\nedit these files to define your workflow")
+
+
 @app.group()
 def workflow() -> None:
     """Workflow inspection commands."""
