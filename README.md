@@ -29,3 +29,191 @@ The basic idea of working with `neo` is:
 - `neo` knows the available next actions given the current task state. It can generate a prompt for
   an agent to carry them out, and it can have the agent do it, in collaboration with you, or
   automatically.
+
+## Custom workflows
+
+Run `neo init` to scaffold a `.neo/` directory, then edit the files to define your workflow.
+A workflow is a state machine: stages inferred from the filesystem, connected by actions (prompts
+sent to an AI agent). Here are two examples.
+
+### Example: issue workflow
+
+A workflow for working on issues: reproduce, plan, implement, verify.
+
+```
+.neo/
+├── workflow.py
+└── actions/
+    ├── repro.md
+    ├── plan.md
+    ├── implement.md
+    └── verify.md
+```
+
+`.neo/workflow.py`:
+```python
+from pathlib import Path
+from neomorphus import Stage, Workflow, load_actions
+
+OPEN       = Stage("open")
+REPRODUCED = Stage("reproduced")
+PLANNED    = Stage("planned")
+DONE       = Stage("done")
+
+actions = load_actions(Path(__file__).parent / "actions")
+
+def infer_stage(root: Path) -> Stage:
+    if (root / ".task/result.md").exists():
+        return DONE
+    if (root / ".task/plan.md").exists():
+        return PLANNED
+    if (root / ".task/repro.md").exists():
+        return REPRODUCED
+    return OPEN
+
+workflow = Workflow(
+    transitions={
+        OPEN:       {actions.repro: REPRODUCED},
+        REPRODUCED: {actions.plan: PLANNED},
+        PLANNED:    {actions.implement: DONE},
+        DONE:       {actions.verify: DONE},
+    },
+    infer_stage=infer_stage,
+)
+```
+
+The action prompts are markdown files with YAML frontmatter. They can reference files via
+`{{mustache}}` variables — `neo` reads `.task/` files into the template context automatically.
+
+`.neo/actions/repro.md`:
+```markdown
+---
+name: repro
+---
+Read .task/task.md. Write a failing test that reproduces the bug.
+Save your analysis to .task/repro.md.
+```
+
+`.neo/actions/plan.md`:
+```markdown
+---
+name: plan
+---
+Given the reproduction in .task/repro.md:
+
+{{repro}}
+
+Propose an implementation plan. Write it to .task/plan.md.
+```
+
+`.neo/actions/implement.md`:
+```markdown
+---
+name: implement
+---
+Implement the fix described in .task/plan.md:
+
+{{plan}}
+
+Write .task/result.md summarising what you changed and why.
+```
+
+`.neo/actions/verify.md`:
+```markdown
+---
+name: verify
+---
+Review the implementation. Run the tests. Confirm the repro test now passes.
+Update .task/result.md with verification status.
+```
+
+Usage:
+```
+$ neo status
+stage: open
+
+$ neo next
+stage: open
+  repro: $ neo do repro
+
+$ neo do repro
+# agent writes failing test, saves .task/repro.md
+
+$ neo do plan
+# agent reads repro, writes .task/plan.md
+
+$ neo do implement
+# agent implements the fix
+
+$ neo do verify
+# agent runs tests, confirms fix
+```
+
+### Example: PR review workflow
+
+A workflow for reviewing pull requests: first build context, then review.
+
+```
+.neo/
+├── workflow.py
+└── actions/
+    ├── contextualize.md
+    └── review.md
+```
+
+`.neo/workflow.py`:
+```python
+from pathlib import Path
+from neomorphus import Stage, Workflow, load_actions
+
+PENDING  = Stage("pending")
+REVIEWED = Stage("reviewed")
+
+actions = load_actions(Path(__file__).parent / "actions")
+
+def infer_stage(root: Path) -> Stage:
+    if (root / ".task/review.md").exists():
+        return REVIEWED
+    return PENDING
+
+workflow = Workflow(
+    transitions={
+        PENDING:  {actions.contextualize: PENDING, actions.review: REVIEWED},
+        REVIEWED: {actions.review: REVIEWED},
+    },
+    infer_stage=infer_stage,
+)
+```
+
+`.neo/actions/contextualize.md`:
+```markdown
+---
+name: contextualize
+args:
+  - pr_url
+---
+Fetch the PR at {{pr_url}}. Identify what the author is trying to achieve.
+Understand the surrounding code. Write your analysis to .task/context.md.
+```
+
+`.neo/actions/review.md`:
+```markdown
+---
+name: review
+---
+Using .task/context.md:
+
+{{context}}
+
+Review the PR. Check for correctness, test coverage, simplicity, and
+whether the change is the right move. Write .task/review.md.
+```
+
+Usage:
+```
+$ neo do contextualize https://github.com/org/repo/pull/123
+# agent fetches PR, writes .task/context.md
+
+$ neo do review
+# agent reviews against context, writes .task/review.md
+```
