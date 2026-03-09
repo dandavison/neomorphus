@@ -153,6 +153,57 @@ def test_workflow_show(git_repo: Path) -> None:
     assert "--[init]-->" in result.output
 
 
+def test_workflow_use_sets_default(git_repo: Path) -> None:
+    runner = CliRunner()
+    # No default initially
+    result = runner.invoke(app, ["workflow", "use"])
+    assert result.exit_code == 0
+    assert "no default" in result.output
+
+    # Set a default
+    result = runner.invoke(app, ["workflow", "use", "-w", "bug-fix"])
+    assert result.exit_code == 0
+    assert "bug-fix" in result.output
+
+    # Show resolves to bug-fix without -w
+    result = runner.invoke(app, ["workflow", "show"])
+    assert result.exit_code == 0
+    assert "--[repro]-->" in result.output
+
+    # -w overrides stored default
+    result = runner.invoke(app, ["workflow", "show", "-w", "pr-review"])
+    assert result.exit_code == 0
+    assert "--[review]-->" in result.output
+
+    # Clear
+    result = runner.invoke(app, ["workflow", "use", "--clear"])
+    assert result.exit_code == 0
+    assert "cleared" in result.output
+
+    # Back to default
+    result = runner.invoke(app, ["workflow", "show"])
+    assert result.exit_code == 0
+    assert "--[init]-->" in result.output
+
+
+def test_workflow_use_validates_name(git_repo: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["workflow", "use", "-w", "nonexistent"])
+    assert result.exit_code != 0
+
+
+def test_workflow_list_marks_current(git_repo: Path) -> None:
+    runner = CliRunner()
+    runner.invoke(app, ["workflow", "use", "-w", "bug-fix"])
+    result = runner.invoke(app, ["workflow", "list"])
+    assert result.exit_code == 0
+    for line in result.output.splitlines():
+        if "bug-fix" in line:
+            assert "*" in line
+        elif line.strip():
+            assert "*" not in line
+
+
 def test_workflow_show_with_name(git_repo: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["workflow", "show", "-w", "bug-fix"])

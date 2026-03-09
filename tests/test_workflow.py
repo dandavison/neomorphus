@@ -187,7 +187,7 @@ def test_list_workflows_no_neo_dir(tmp_path: Path) -> None:
     from neomorphus._workflow import list_workflows
 
     result = list_workflows(tmp_path)
-    assert result == [("bug-fix", "builtin"), ("default", "builtin), ("pr-review", "bubuiltin]
+    assert result == [("bug-fix", "builtin"), ("default", "builtin"), ("pr-review", "builtin")]
 
 
 def test_list_workflows_with_neo_dir(tmp_path: Path) -> None:
@@ -198,6 +198,20 @@ def test_list_workflows_with_neo_dir(tmp_path: Path) -> None:
     _create_workflow(neo_dir, "beta")
     result = list_workflows(tmp_path)
     assert result == [("alpha", "custom"), ("beta", "custom")]
+
+
+def test_stored_workflow_roundtrip(tmp_path: Path) -> None:
+    from neomorphus._workflow import clear_stored_workflow, store_workflow, stored_workflow
+
+    assert stored_workflow(tmp_path) is None
+    store_workflow(tmp_path, "bug-fix")
+    assert stored_workflow(tmp_path) == "bug-fix"
+    store_workflow(tmp_path, "pr-review")
+    assert stored_workflow(tmp_path) == "pr-review"
+    clear_stored_workflow(tmp_path)
+    assert stored_workflow(tmp_path) is None
+    # clearing when already absent is fine
+    clear_stored_workflow(tmp_path)
 
 
 def test_describe() -> None:

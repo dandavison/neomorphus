@@ -9,8 +9,11 @@ from neomorphus._workflow import (
     BUILTIN_WORKFLOWS,
     Workflow,
     builtin_dir,
+    clear_stored_workflow,
     list_workflows,
     load_workflow,
+    store_workflow,
+    stored_workflow,
 )
 
 _wf_option = click.option("-w", "--workflow", default=None, help="Workflow name or path")
@@ -26,8 +29,16 @@ def _wf_name(ctx: click.Context) -> str | None:
     return None
 
 
+def _resolve_name(ctx: click.Context) -> str | None:
+    """Tier 1: -w flag, Tier 2: stored default."""
+    name = _wf_name(ctx)
+    if name is not None:
+        return name
+    return stored_workflow(git.git_dir())
+
+
 def _get_workflow(ctx: click.Context) -> Workflow:
-    return load_workflow(git.repo_root(), _wf_name(ctx))
+    return load_workflow(git.repo_root(), _resolve_name(ctx))
 
 
 def _make_action_command(action: Action) -> click.Command:
@@ -50,7 +61,7 @@ def _make_action_command(action: Action) -> click.Command:
             click.echo(f"{chosen.name} is a human action: {chosen.prompt_template}")
             raise SystemExit(1)
         root = git.repo_root()
-        active_wf = load_workflow(root, _wf_name(ctx))
+        active_wf = _get_workflow(ctx)
         stage = active_wf.stage(root)
         available = active_wf.next_actions(stage)
         if action not in available:
@@ -123,9 +134,8 @@ def app(workflow: str | None) -> None:  # noqa: ARG001
 @click.pass_context
 def status(ctx: click.Context, workflow: str | None) -> None:  # noqa: ARG001
     """Infer and display the current task stage."""
-    root = git.repo_root()
-    wf = load_workflow(root, _wf_name(ctx))
-    stage = wf.stage(root)
+    wf = _get_workflow(ctx)
+    stage = wf.stage(git.repo_root())
     click.echo(f"stage: {stage}")
 
 
@@ -134,9 +144,8 @@ def status(ctx: click.Context, workflow: str | None) -> None:  # noqa: ARG001
 @click.pass_context
 def next_command(ctx: click.Context, workflow: str | None) -> None:  # noqa: ARG001
     """Show available actions for the current stage."""
-    root = git.repo_root()
-    wf = load_workflow(root, _wf_name(ctx))
-    stage = wf.stage(root)
+    wf = _get_workflow(ctx)
+    stage = wf.stage(git.repo_root())
     actions = wf.next_actions(stage)
     if not actions:
         click.echo(f"stage: {stage} — no actions available")
@@ -194,8 +203,35 @@ def workflow() -> None:
 def workflow_list() -> None:
     """List available workflows."""
     root = git.repo_root()
+    current = stored_workflow(git.git_dir())
     for name, source in list_workflows(root):
-        click.echo(f"  {name}  ({source})")
+        marker = " *" if name == current else ""
+        click.echo(f"  {name}  ({source}){marker}")
+
+
+@workflow.command()
+@_wf_option
+@click.option("--clear", is_flag=True, help="Remove the stored default")
+@click.pass_context
+def use(ctx: click.Context, workflow: str | None, clear: bool) -> None:  # noqa: ARG001
+    """Set or clear the default workflow for this repo."""
+    gd = git.git_dir()
+    if clear:
+        clear_stored_workflow(gd)
+        click.echo("cleared stored workflow default")
+        return
+    name = _wf_name(ctx)
+    if name is None:
+        current = stored_workflow(gd)
+        if current:
+            click.echo(f"current default: {current}")
+        else:
+            click.echo("no default set")
+        return
+    # Validate that the name resolves.
+    load_workflow(git.repo_root(), name)
+    store_workflow(gd, name)
+    click.echo(f"default workflow: {name}")
 
 
 @workflow.command()

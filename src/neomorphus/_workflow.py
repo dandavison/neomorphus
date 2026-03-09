@@ -84,6 +84,32 @@ BUILTIN_WORKFLOWS: dict[str, str] = {
 }
 
 
+_STORED_WF_FILE = "neo/workflow"
+
+
+def stored_workflow(git_dir: Path) -> str | None:
+    """Read the stored default workflow name, or None."""
+    p = git_dir / _STORED_WF_FILE
+    if p.is_file():
+        name = p.read_text().strip()
+        return name or None
+    return None
+
+
+def store_workflow(git_dir: Path, name: str) -> None:
+    """Persist the default workflow name."""
+    p = git_dir / _STORED_WF_FILE
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(name + "\n")
+
+
+def clear_stored_workflow(git_dir: Path) -> None:
+    """Remove the stored default workflow name."""
+    p = git_dir / _STORED_WF_FILE
+    if p.is_file():
+        p.unlink()
+
+
 def list_workflows(root: Path) -> list[tuple[str, str]]:
     """Return (name, source) pairs for all available workflows.
 

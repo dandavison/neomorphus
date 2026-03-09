@@ -2,6 +2,17 @@ import subprocess
 from pathlib import Path
 
 
+def git_dir() -> Path:
+    """Return the .git directory (handles submodules where .git is a file)."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--git-dir"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return Path(result.stdout.strip()).resolve()
+
+
 def repo_root() -> Path:
     result = subprocess.run(
         ["git", "rev-parse", "--show-toplevel"],
