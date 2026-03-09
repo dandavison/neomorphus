@@ -182,7 +182,7 @@ def init(name: str | None, template: str) -> None:
         shutil.copy2(md, actions_dir / md.name)
         click.echo(f"created .neo/{name}/actions/{md.name}")
     click.echo(f"created .neo/{name}/workflow.py")
-    click.echo(f"\nseeded from built-in '{template}' — edit to customize")
+    click.echo(f"\nseeded from builtin '{template}' — edit to customize")
 
 
 @app.group()

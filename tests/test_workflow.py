@@ -187,7 +187,7 @@ def test_list_workflows_no_neo_dir(tmp_path: Path) -> None:
     from neomorphus._workflow import list_workflows
 
     result = list_workflows(tmp_path)
-    assert result == [("bug-fix", "built-in"), ("default", "built-in"), ("pr-review", "built-in")]
+    assert result == [("bug-fix", "builtin"), ("default", "builtin), ("pr-review", "bubuiltin]
 
 
 def test_list_workflows_with_neo_dir(tmp_path: Path) -> None:
@@ -208,7 +208,7 @@ def test_describe() -> None:
 
 
 def test_neo_dir_shadows_builtins(tmp_path: Path) -> None:
-    """When .neo/ exists, built-in names are NOT resolved."""
+    """When .neo/ exists, builtin names are NOT resolved."""
     _create_workflow(tmp_path / ".neo", "other")
     with pytest.raises(ValueError, match="not found"):
         load_workflow(tmp_path, name="bug-fix")

@@ -142,7 +142,7 @@ def test_workflow_list(git_repo: Path) -> None:
     assert result.exit_code == 0
     assert "default" in result.output
     assert "bug-fix" in result.output
-    assert "built-in" in result.output
+    assert "builtin" in result.output
 
 
 def test_workflow_show(git_repo: Path) -> None:

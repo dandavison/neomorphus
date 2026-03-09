@@ -87,12 +87,12 @@ BUILTIN_WORKFLOWS: dict[str, str] = {
 def list_workflows(root: Path) -> list[tuple[str, str]]:
     """Return (name, source) pairs for all available workflows.
 
-    Source is "custom" for .neo/ workflows, "built-in" for built-ins.
+    Source is "custom" for .neo/ workflows, "builtin" for builtin.
     """
     neo_dir = root / ".neo"
     if neo_dir.is_dir():
         return [(name, "custom") for name, _ in _discover_workflows(neo_dir)]
-    return [(name, "built-in") for name in sorted(BUILTIN_WORKFLOWS)]
+    return [(name, "builtin") for name in sorted(BUILTIN_WORKFLOWS)]
 
 
 def _load_builtin(name: str) -> Workflow:
@@ -103,11 +103,11 @@ def _load_builtin(name: str) -> Workflow:
         val = getattr(mod, attr)
         if isinstance(val, Workflow):
             return val
-    raise ValueError(f"built-in workflow '{name}' has no Workflow instance")
+    raise ValueError(f"builtin workflow '{name}' has no Workflow instance")
 
 
 def builtin_dir(name: str) -> Path:
-    """Return the package directory for a built-in workflow."""
+    """Return the package directory for a builtin workflow."""
     import importlib
 
     mod = importlib.import_module(BUILTIN_WORKFLOWS[name])
@@ -118,7 +118,7 @@ def builtin_dir(name: str) -> Path:
 def load_workflow(root: Path, name: str | None = None) -> Workflow:
     neo_dir = root / ".neo"
 
-    # .neo/ exists: user-defined only, never fall back to built-ins.
+    # .neo/ exists: user-defined only, never fall back to builtins.
     if neo_dir.is_dir():
         if name is not None:
             return _load_custom_workflow(_resolve_workflow_file(root, name))
@@ -130,7 +130,7 @@ def load_workflow(root: Path, name: str | None = None) -> Workflow:
             raise ValueError(f"multiple workflows found ({names}). Use -w to select.")
         return _load_custom_workflow(workflows[0][1])
 
-    # No .neo/: resolve against built-ins.
+    # No .neo/: resolve against builtins.
     if name is None:
         name = "default"
     if name in BUILTIN_WORKFLOWS:
