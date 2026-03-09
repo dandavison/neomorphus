@@ -68,14 +68,47 @@ class Workflow:
         return "\n".join(lines)
 
 
-def load_workflow(root: Path) -> Workflow:
+def load_workflow(root: Path, name: str | None = None) -> Workflow:
     neo_dir = root / ".neo"
-    wf_file = neo_dir / "workflow.py"
-    if wf_file.is_file():
-        return _load_custom_workflow(wf_file)
-    from neomorphus.workflows.default import DEFAULT_WORKFLOW
+    if not neo_dir.is_dir():
+        if name is not None:
+            raise ValueError(f".neo/ not found in {root}")
+        from neomorphus.workflows.default import DEFAULT_WORKFLOW
 
-    return DEFAULT_WORKFLOW
+        return DEFAULT_WORKFLOW
+
+    if name is not None:
+        return _load_custom_workflow(_resolve_workflow_file(root, name))
+
+    workflows = _discover_workflows(neo_dir)
+    if len(workflows) == 0:
+        raise ValueError(f".neo/ exists but contains no workflows in {root}")
+    if len(workflows) > 1:
+        names = ", ".join(sorted(n for n, _ in workflows))
+        raise ValueError(f"multiple workflows found ({names}). Use -w to select.")
+    return _load_custom_workflow(workflows[0][1])
+
+
+def _resolve_workflow_file(root: Path, name: str) -> Path:
+    if "/" in name or name.endswith(".py"):
+        p = Path(name) if Path(name).is_absolute() else root / name
+        if not p.is_file():
+            raise ValueError(f"workflow file not found: {p}")
+        return p
+    wf_file = root / ".neo" / name / "workflow.py"
+    if not wf_file.is_file():
+        raise ValueError(f"workflow '{name}' not found at {wf_file}")
+    return wf_file
+
+
+def _discover_workflows(neo_dir: Path) -> list[tuple[str, Path]]:
+    results: list[tuple[str, Path]] = []
+    for child in sorted(neo_dir.iterdir()):
+        if child.is_dir():
+            wf_file = child / "workflow.py"
+            if wf_file.is_file():
+                results.append((child.name, wf_file))
+    return results
 
 
 def _load_custom_workflow(wf_file: Path) -> Workflow:
