@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-_DEFAULT_ACTIONS_DIR = Path(__file__).parent / "workflows" / "default"
+_DEFAULT_ACTIONS_DIR = Path(__file__).parent / "workflows" / "default" / "actions"
 _MUSTACHE_RE = re.compile(r"\{\{(\w+)\}\}")
 _FRONTMATTER_RE = re.compile(r"\A---\n(.+?)\n---\n(.*)", re.DOTALL)
 

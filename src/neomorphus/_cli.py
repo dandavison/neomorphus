@@ -1,12 +1,11 @@
 import shutil
-from pathlib import Path
 
 import click
 
 from neomorphus import _git as git
 from neomorphus import _run as run_mod
 from neomorphus._actions import Action, load_actions, task_context
-from neomorphus._workflow import Workflow, load_workflow
+from neomorphus._workflow import BUILTIN_WORKFLOWS, Workflow, builtin_dir, load_workflow
 
 _wf_option = click.option("-w", "--workflow", default=None, help="Workflow name or path")
 
@@ -22,12 +21,7 @@ def _wf_name(ctx: click.Context) -> str | None:
 
 
 def _get_workflow(ctx: click.Context) -> Workflow:
-    try:
-        return load_workflow(git.repo_root(), _wf_name(ctx))
-    except Exception:
-        from neomorphus.workflows.default import DEFAULT_WORKFLOW
-
-        return DEFAULT_WORKFLOW
+    return load_workflow(git.repo_root(), _wf_name(ctx))
 
 
 def _make_action_command(action: Action) -> click.Command:
@@ -156,63 +150,33 @@ _do_group.params.append(
 app.add_command(_do_group)
 
 
-_INIT_WORKFLOW = """\
-from pathlib import Path
-
-from neomorphus import Stage, Workflow, load_actions
-
-PLAN_SELECTED = Stage("plan-selected")
-PLANS_PROPOSED = Stage("plans-proposed")
-TASK_DEFINED = Stage("task-defined")
-NO_TASK = Stage("no-task")
-
-actions = load_actions(Path(__file__).parent / "actions")
-
-
-def infer_stage(root: Path) -> Stage:
-    if (root / ".task/plan.md").exists():
-        return PLAN_SELECTED
-    if list(root.glob(".task/plans/*.md")):
-        return PLANS_PROPOSED
-    if (root / ".task/task.md").exists():
-        return TASK_DEFINED
-    return NO_TASK
-
-
-workflow = Workflow(
-    transitions={
-        NO_TASK: {actions.init: TASK_DEFINED},
-        TASK_DEFINED: {actions.evolve: TASK_DEFINED, actions.plan: PLANS_PROPOSED},
-        PLANS_PROPOSED: {
-            actions.evolve: PLANS_PROPOSED,
-            actions.plan: PLANS_PROPOSED,
-            actions.select_plan: PLAN_SELECTED,
-        },
-        PLAN_SELECTED: {actions.implement: NO_TASK},
-    },
-    infer_stage=infer_stage,
-)
-"""
-
-
 @app.command()
-@click.argument("name", default="default")
-def init(name: str) -> None:
+@click.argument("name", default=None, required=False)
+@click.option(
+    "--from",
+    "template",
+    default="default",
+    type=click.Choice(sorted(BUILTIN_WORKFLOWS)),
+    help="Built-in workflow to seed from",
+)
+def init(name: str | None, template: str) -> None:
     """Scaffold a .neo/ custom workflow."""
+    if name is None:
+        name = template
     root = git.repo_root()
     wf_dir = root / ".neo" / name
     if wf_dir.exists():
         click.echo(f"error: .neo/{name}/ already exists", err=True)
         raise SystemExit(1)
+    src_dir = builtin_dir(template)
     actions_dir = wf_dir / "actions"
     actions_dir.mkdir(parents=True)
-    (wf_dir / "workflow.py").write_text(_INIT_WORKFLOW)
-    default_actions = Path(__file__).parent / "workflows" / "default"
-    for md in sorted(default_actions.glob("*.md")):
+    shutil.copy2(src_dir / "__init__.py", wf_dir / "workflow.py")
+    for md in sorted((src_dir / "actions").glob("*.md")):
         shutil.copy2(md, actions_dir / md.name)
         click.echo(f"created .neo/{name}/actions/{md.name}")
     click.echo(f"created .neo/{name}/workflow.py")
-    click.echo("\nedit these files to define your workflow")
+    click.echo(f"\nseeded from built-in '{template}' — edit to customize")
 
 
 @app.group()

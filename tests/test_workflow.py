@@ -5,7 +5,7 @@ import pytest
 from neomorphus._actions import Action, load_actions, task_context
 from neomorphus._status import Stage
 from neomorphus._workflow import Workflow, load_workflow
-from neomorphus.workflows.default import DEFAULT_WORKFLOW
+from neomorphus.workflows.default import workflow as DEFAULT_WORKFLOW
 
 _MINIMAL_WORKFLOW = """\
 from pathlib import Path
@@ -162,3 +162,29 @@ def test_file_path_resolution(tmp_path: Path) -> None:
     wf_file = tmp_path / ".neo" / "issue" / "workflow.py"
     wf = load_workflow(tmp_path, name=str(wf_file))
     assert isinstance(wf, Workflow)
+
+
+def test_builtin_bug_fix(tmp_path: Path) -> None:
+    from neomorphus.workflows.bug_fix import workflow as bug_fix_wf
+
+    wf = load_workflow(tmp_path, name="bug-fix")
+    assert wf is bug_fix_wf
+
+
+def test_builtin_pr_review(tmp_path: Path) -> None:
+    from neomorphus.workflows.pr_review import workflow as pr_review_wf
+
+    wf = load_workflow(tmp_path, name="pr-review")
+    assert wf is pr_review_wf
+
+
+def test_builtin_unknown_errors(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="unknown workflow"):
+        load_workflow(tmp_path, name="nonexistent")
+
+
+def test_neo_dir_shadows_builtins(tmp_path: Path) -> None:
+    """When .neo/ exists, built-in names are NOT resolved."""
+    _create_workflow(tmp_path / ".neo", "other")
+    with pytest.raises(ValueError, match="not found"):
+        load_workflow(tmp_path, name="bug-fix")

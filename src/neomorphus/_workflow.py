@@ -68,25 +68,56 @@ class Workflow:
         return "\n".join(lines)
 
 
+BUILTIN_WORKFLOWS: dict[str, str] = {
+    "default": "neomorphus.workflows.default",
+    "bug-fix": "neomorphus.workflows.bug_fix",
+    "pr-review": "neomorphus.workflows.pr_review",
+}
+
+
+def _load_builtin(name: str) -> Workflow:
+    import importlib
+
+    mod = importlib.import_module(BUILTIN_WORKFLOWS[name])
+    for attr in dir(mod):
+        val = getattr(mod, attr)
+        if isinstance(val, Workflow):
+            return val
+    raise ValueError(f"built-in workflow '{name}' has no Workflow instance")
+
+
+def builtin_dir(name: str) -> Path:
+    """Return the package directory for a built-in workflow."""
+    import importlib
+
+    mod = importlib.import_module(BUILTIN_WORKFLOWS[name])
+    assert mod.__file__ is not None
+    return Path(mod.__file__).parent
+
+
 def load_workflow(root: Path, name: str | None = None) -> Workflow:
     neo_dir = root / ".neo"
-    if not neo_dir.is_dir():
+
+    # .neo/ exists: user-defined only, never fall back to built-ins.
+    if neo_dir.is_dir():
         if name is not None:
-            raise ValueError(f".neo/ not found in {root}")
-        from neomorphus.workflows.default import DEFAULT_WORKFLOW
+            return _load_custom_workflow(_resolve_workflow_file(root, name))
+        workflows = _discover_workflows(neo_dir)
+        if len(workflows) == 0:
+            raise ValueError(f".neo/ exists but contains no workflows in {root}")
+        if len(workflows) > 1:
+            names = ", ".join(sorted(n for n, _ in workflows))
+            raise ValueError(f"multiple workflows found ({names}). Use -w to select.")
+        return _load_custom_workflow(workflows[0][1])
 
-        return DEFAULT_WORKFLOW
-
-    if name is not None:
-        return _load_custom_workflow(_resolve_workflow_file(root, name))
-
-    workflows = _discover_workflows(neo_dir)
-    if len(workflows) == 0:
-        raise ValueError(f".neo/ exists but contains no workflows in {root}")
-    if len(workflows) > 1:
-        names = ", ".join(sorted(n for n, _ in workflows))
-        raise ValueError(f"multiple workflows found ({names}). Use -w to select.")
-    return _load_custom_workflow(workflows[0][1])
+    # No .neo/: resolve against built-ins.
+    if name is None:
+        name = "default"
+    if name in BUILTIN_WORKFLOWS:
+        return _load_builtin(name)
+    raise ValueError(
+        f"unknown workflow '{name}'. Built-in workflows: " + ", ".join(sorted(BUILTIN_WORKFLOWS))
+    )
 
 
 def _resolve_workflow_file(root: Path, name: str) -> Path:

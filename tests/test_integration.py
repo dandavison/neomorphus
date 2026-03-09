@@ -6,11 +6,13 @@ from click.testing import CliRunner
 
 from neomorphus._cli import app
 from neomorphus.workflows.default import (
-    DEFAULT_WORKFLOW,
     NO_TASK,
     PLAN_SELECTED,
     PLANS_PROPOSED,
     TASK_DEFINED,
+)
+from neomorphus.workflows.default import (
+    workflow as DEFAULT_WORKFLOW,
 )
 from tests.conftest import FakeClaude
 

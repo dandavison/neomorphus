@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from neomorphus._actions import load_actions
-from neomorphus._status import Stage
-from neomorphus._workflow import Workflow
+from neomorphus import Stage, Workflow, load_actions
 
 PLAN_SELECTED = Stage("plan-selected")
 PLANS_PROPOSED = Stage("plans-proposed")
 TASK_DEFINED = Stage("task-defined")
 NO_TASK = Stage("no-task")
+
+actions = load_actions(Path(__file__).parent / "actions")
 
 
 def infer_stage(root: Path) -> Stage:
@@ -20,9 +20,7 @@ def infer_stage(root: Path) -> Stage:
     return NO_TASK
 
 
-actions = load_actions()
-
-DEFAULT_WORKFLOW = Workflow(
+workflow = Workflow(
     transitions={
         NO_TASK: {
             actions.init: TASK_DEFINED,
