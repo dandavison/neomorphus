@@ -78,9 +78,12 @@ class Workflow:
 
 
 BUILTIN_WORKFLOWS: dict[str, str] = {
+    "bug": "neomorphus.workflows.bug",
+    "bugbash": "neomorphus.workflows.bugbash",
     "default": "neomorphus.workflows.default",
-    "bug-fix": "neomorphus.workflows.bug_fix",
-    "pr-review": "neomorphus.workflows.pr_review",
+    "feature": "neomorphus.workflows.feature",
+    "refactor": "neomorphus.workflows.refactor",
+    "review": "neomorphus.workflows.review",
 }
 
 

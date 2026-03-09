@@ -72,7 +72,7 @@ def _make_action_command(action: Action) -> click.Command:
             )
             raise SystemExit(1)
         tctx = task_context(root)
-        tctx.update(kwargs)
+        tctx.update({k: v for k, v in kwargs.items() if v is not None})
         if prompt:
             tctx["user_prompt"] = prompt
         rendered = chosen.render_prompt(tctx)
@@ -85,8 +85,11 @@ def _make_action_command(action: Action) -> click.Command:
         click.echo(f"prompt: {rendered[:200]}{'...' if len(rendered) > 200 else ''}")
         run_mod.run(rendered, interactive=interactive)
 
-    for arg_name in action.args:
-        handler.params.insert(0, click.Argument([arg_name], type=click.Path()))
+    for i, arg_name in enumerate(action.args):
+        handler.params.insert(i, click.Argument([arg_name]))
+    n = len(action.args)
+    for i, arg_name in enumerate(action.optional_args):
+        handler.params.insert(n + i, click.Argument([arg_name], required=False, default=None))
 
     return handler
 

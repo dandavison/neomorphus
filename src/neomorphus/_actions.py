@@ -16,6 +16,7 @@ class Action:
     prompt_template: str
     human: bool = False
     args: tuple[str, ...] = ()
+    optional_args: tuple[str, ...] = ()
 
     def render_prompt(self, context: dict[str, str]) -> str:
         return _MUSTACHE_RE.sub(
@@ -50,11 +51,15 @@ def load_action(path: Path) -> Action:
         raise ValueError(f"{path}: missing YAML frontmatter")
     meta = yaml.safe_load(m.group(1))
     prompt = m.group(2).strip()
+    raw_args = meta.get("args", [])
+    required = [a for a in raw_args if not a.endswith("?")]
+    optional = [a.rstrip("?") for a in raw_args if a.endswith("?")]
     return Action(
         name=meta["name"],
         prompt_template=prompt,
         human=meta.get("human", False),
-        args=tuple(meta.get("args", ())),
+        args=tuple(required),
+        optional_args=tuple(optional),
     )
 
 

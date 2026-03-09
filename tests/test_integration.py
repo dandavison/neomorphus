@@ -141,7 +141,7 @@ def test_workflow_list(git_repo: Path) -> None:
     result = runner.invoke(app, ["workflow", "list"])
     assert result.exit_code == 0
     assert "default" in result.output
-    assert "bug-fix" in result.output
+    assert "bug" in result.output
     assert "builtin" in result.output
 
 
@@ -161,17 +161,17 @@ def test_workflow_use_sets_default(git_repo: Path) -> None:
     assert "no default" in result.output
 
     # Set a default
-    result = runner.invoke(app, ["workflow", "use", "-w", "bug-fix"])
+    result = runner.invoke(app, ["workflow", "use", "-w", "bug"])
     assert result.exit_code == 0
-    assert "bug-fix" in result.output
+    assert "bug" in result.output
 
     # Show resolves to bug-fix without -w
     result = runner.invoke(app, ["workflow", "show"])
     assert result.exit_code == 0
-    assert "--[repro]-->" in result.output
+    assert "--[research]-->" in result.output
 
     # -w overrides stored default
-    result = runner.invoke(app, ["workflow", "show", "-w", "pr-review"])
+    result = runner.invoke(app, ["workflow", "show", "-w", "review"])
     assert result.exit_code == 0
     assert "--[review]-->" in result.output
 
@@ -194,11 +194,12 @@ def test_workflow_use_validates_name(git_repo: Path) -> None:
 
 def test_workflow_list_marks_current(git_repo: Path) -> None:
     runner = CliRunner()
-    runner.invoke(app, ["workflow", "use", "-w", "bug-fix"])
+    runner.invoke(app, ["workflow", "use", "-w", "bug"])
     result = runner.invoke(app, ["workflow", "list"])
     assert result.exit_code == 0
     for line in result.output.splitlines():
-        if "bug-fix" in line:
+        name = line.split()[0] if line.strip() else ""
+        if name == "bug":
             assert "*" in line
         elif line.strip():
             assert "*" not in line
@@ -206,10 +207,10 @@ def test_workflow_list_marks_current(git_repo: Path) -> None:
 
 def test_workflow_show_with_name(git_repo: Path) -> None:
     runner = CliRunner()
-    result = runner.invoke(app, ["workflow", "show", "-w", "bug-fix"])
+    result = runner.invoke(app, ["workflow", "show", "-w", "bug"])
     assert result.exit_code == 0
     assert "open" in result.output
-    assert "--[repro]-->" in result.output
+    assert "--[research]-->" in result.output
 
 
 def test_next_shows_actions(git_repo: Path) -> None:

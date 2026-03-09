@@ -73,6 +73,23 @@ def test_render_prompt_with_args() -> None:
     assert action.render_prompt({"target": ".task/task.md"}) == "Rewrite .task/task.md"
 
 
+def test_optional_args_parsing() -> None:
+    from tempfile import NamedTemporaryFile
+
+    from neomorphus._actions import load_action
+
+    content = (
+        "---\nname: test\nargs:\n  - required\n  - optional?\n"
+        "---\nDo {{required}} {{optional}}"
+    )
+    with NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+        f.write(content)
+        f.flush()
+        action = load_action(Path(f.name))
+    assert action.args == ("required",)
+    assert action.optional_args == ("optional",)
+
+
 def test_load_actions() -> None:
     actions = load_actions()
     names = {a.name for a in actions}
@@ -164,18 +181,39 @@ def test_file_path_resolution(tmp_path: Path) -> None:
     assert isinstance(wf, Workflow)
 
 
-def test_builtin_bug_fix(tmp_path: Path) -> None:
-    from neomorphus.workflows.bug_fix import workflow as bug_fix_wf
+def test_builtin_bug(tmp_path: Path) -> None:
+    from neomorphus.workflows.bug import workflow as bug_wf
 
-    wf = load_workflow(tmp_path, name="bug-fix")
-    assert wf is bug_fix_wf
+    wf = load_workflow(tmp_path, name="bug")
+    assert wf is bug_wf
 
 
-def test_builtin_pr_review(tmp_path: Path) -> None:
-    from neomorphus.workflows.pr_review import workflow as pr_review_wf
+def test_builtin_feature(tmp_path: Path) -> None:
+    from neomorphus.workflows.feature import workflow as feature_wf
 
-    wf = load_workflow(tmp_path, name="pr-review")
-    assert wf is pr_review_wf
+    wf = load_workflow(tmp_path, name="feature")
+    assert wf is feature_wf
+
+
+def test_builtin_review(tmp_path: Path) -> None:
+    from neomorphus.workflows.review import workflow as review_wf
+
+    wf = load_workflow(tmp_path, name="review")
+    assert wf is review_wf
+
+
+def test_builtin_refactor(tmp_path: Path) -> None:
+    from neomorphus.workflows.refactor import workflow as refactor_wf
+
+    wf = load_workflow(tmp_path, name="refactor")
+    assert wf is refactor_wf
+
+
+def test_builtin_bugbash(tmp_path: Path) -> None:
+    from neomorphus.workflows.bugbash import workflow as bugbash_wf
+
+    wf = load_workflow(tmp_path, name="bugbash")
+    assert wf is bugbash_wf
 
 
 def test_builtin_unknown_errors(tmp_path: Path) -> None:
@@ -187,7 +225,14 @@ def test_list_workflows_no_neo_dir(tmp_path: Path) -> None:
     from neomorphus._workflow import list_workflows
 
     result = list_workflows(tmp_path)
-    assert result == [("bug-fix", "builtin"), ("default", "builtin"), ("pr-review", "builtin")]
+    assert result == [
+        ("bug", "builtin"),
+        ("bugbash", "builtin"),
+        ("default", "builtin"),
+        ("feature", "builtin"),
+        ("refactor", "builtin"),
+        ("review", "builtin"),
+    ]
 
 
 def test_list_workflows_with_neo_dir(tmp_path: Path) -> None:
@@ -204,10 +249,10 @@ def test_stored_workflow_roundtrip(tmp_path: Path) -> None:
     from neomorphus._workflow import clear_stored_workflow, store_workflow, stored_workflow
 
     assert stored_workflow(tmp_path) is None
-    store_workflow(tmp_path, "bug-fix")
-    assert stored_workflow(tmp_path) == "bug-fix"
-    store_workflow(tmp_path, "pr-review")
-    assert stored_workflow(tmp_path) == "pr-review"
+    store_workflow(tmp_path, "bug")
+    assert stored_workflow(tmp_path) == "bug"
+    store_workflow(tmp_path, "review")
+    assert stored_workflow(tmp_path) == "review"
     clear_stored_workflow(tmp_path)
     assert stored_workflow(tmp_path) is None
     # clearing when already absent is fine
@@ -225,4 +270,4 @@ def test_neo_dir_shadows_builtins(tmp_path: Path) -> None:
     """When .neo/ exists, builtin names are NOT resolved."""
     _create_workflow(tmp_path / ".neo", "other")
     with pytest.raises(ValueError, match="not found"):
-        load_workflow(tmp_path, name="bug-fix")
+        load_workflow(tmp_path, name="bug")
