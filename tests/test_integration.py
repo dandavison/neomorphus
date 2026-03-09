@@ -136,6 +136,31 @@ def test_status_shows_stage(git_repo: Path) -> None:
     assert "task-defined" in result.output
 
 
+def test_workflow_list(git_repo: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["workflow", "list"])
+    assert result.exit_code == 0
+    assert "default" in result.output
+    assert "bug-fix" in result.output
+    assert "built-in" in result.output
+
+
+def test_workflow_show(git_repo: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["workflow", "show"])
+    assert result.exit_code == 0
+    assert "stages:" in result.output
+    assert "--[init]-->" in result.output
+
+
+def test_workflow_show_with_name(git_repo: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["workflow", "show", "-w", "bug-fix"])
+    assert result.exit_code == 0
+    assert "open" in result.output
+    assert "--[repro]-->" in result.output
+
+
 def test_next_shows_actions(git_repo: Path) -> None:
     runner = CliRunner()
 

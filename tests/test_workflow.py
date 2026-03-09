@@ -183,6 +183,30 @@ def test_builtin_unknown_errors(tmp_path: Path) -> None:
         load_workflow(tmp_path, name="nonexistent")
 
 
+def test_list_workflows_no_neo_dir(tmp_path: Path) -> None:
+    from neomorphus._workflow import list_workflows
+
+    result = list_workflows(tmp_path)
+    assert result == [("bug-fix", "built-in"), ("default", "built-in"), ("pr-review", "built-in")]
+
+
+def test_list_workflows_with_neo_dir(tmp_path: Path) -> None:
+    from neomorphus._workflow import list_workflows
+
+    neo_dir = tmp_path / ".neo"
+    _create_workflow(neo_dir, "alpha")
+    _create_workflow(neo_dir, "beta")
+    result = list_workflows(tmp_path)
+    assert result == [("alpha", "custom"), ("beta", "custom")]
+
+
+def test_describe() -> None:
+    out = DEFAULT_WORKFLOW.describe()
+    assert out.startswith("stages:")
+    assert "no-task" in out
+    assert "--[init]-->" in out
+
+
 def test_neo_dir_shadows_builtins(tmp_path: Path) -> None:
     """When .neo/ exists, built-in names are NOT resolved."""
     _create_workflow(tmp_path / ".neo", "other")

@@ -5,7 +5,13 @@ import click
 from neomorphus import _git as git
 from neomorphus import _run as run_mod
 from neomorphus._actions import Action, load_actions, task_context
-from neomorphus._workflow import BUILTIN_WORKFLOWS, Workflow, builtin_dir, load_workflow
+from neomorphus._workflow import (
+    BUILTIN_WORKFLOWS,
+    Workflow,
+    builtin_dir,
+    list_workflows,
+    load_workflow,
+)
 
 _wf_option = click.option("-w", "--workflow", default=None, help="Workflow name or path")
 
@@ -182,6 +188,23 @@ def init(name: str | None, template: str) -> None:
 @app.group()
 def workflow() -> None:
     """Workflow inspection commands."""
+
+
+@workflow.command(name="list")
+def workflow_list() -> None:
+    """List available workflows."""
+    root = git.repo_root()
+    for name, source in list_workflows(root):
+        click.echo(f"  {name}  ({source})")
+
+
+@workflow.command()
+@_wf_option
+@click.pass_context
+def show(ctx: click.Context, workflow: str | None) -> None:  # noqa: ARG001
+    """Show the workflow DAG definition."""
+    wf = _get_workflow(ctx)
+    click.echo(wf.describe())
 
 
 @workflow.command()

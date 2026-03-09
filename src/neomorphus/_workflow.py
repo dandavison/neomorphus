@@ -55,6 +55,15 @@ class Workflow:
                     seen.add(key)
                     yield stage, action.name, target
 
+    def describe(self) -> str:
+        lines: list[str] = []
+        lines.append(f"stages: {', '.join(s.name for s in self._stages)}")
+        lines.append("")
+        lines.append("transitions:")
+        for src, action_name, dst in self._transitions():
+            lines.append(f"  {src} --[{action_name}]--> {dst}")
+        return "\n".join(lines)
+
     def diagram_mermaid(self) -> str:
         lines = ["stateDiagram-v2"]
         for src, action_name, dst in self._transitions():
@@ -73,6 +82,17 @@ BUILTIN_WORKFLOWS: dict[str, str] = {
     "bug-fix": "neomorphus.workflows.bug_fix",
     "pr-review": "neomorphus.workflows.pr_review",
 }
+
+
+def list_workflows(root: Path) -> list[tuple[str, str]]:
+    """Return (name, source) pairs for all available workflows.
+
+    Source is "custom" for .neo/ workflows, "built-in" for built-ins.
+    """
+    neo_dir = root / ".neo"
+    if neo_dir.is_dir():
+        return [(name, "custom") for name, _ in _discover_workflows(neo_dir)]
+    return [(name, "built-in") for name in sorted(BUILTIN_WORKFLOWS)]
 
 
 def _load_builtin(name: str) -> Workflow:
