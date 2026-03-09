@@ -8,9 +8,17 @@ from neomorphus import _run as run_mod
 from neomorphus._actions import Action, load_actions, task_context
 from neomorphus._workflow import Workflow, load_workflow
 
+_wf_option = click.option("-w", "--workflow", default=None, help="Workflow name or path")
+
 
 def _wf_name(ctx: click.Context) -> str | None:
-    return ctx.find_root().params.get("workflow")
+    c: click.Context | None = ctx
+    while c is not None:
+        name = c.params.get("workflow")
+        if name is not None:
+            return name
+        c = c.parent
+    return None
 
 
 def _get_workflow(ctx: click.Context) -> Workflow:
@@ -111,8 +119,9 @@ def app(workflow: str | None) -> None:  # noqa: ARG001
 
 
 @app.command()
+@_wf_option
 @click.pass_context
-def status(ctx: click.Context) -> None:
+def status(ctx: click.Context, workflow: str | None) -> None:  # noqa: ARG001
     """Infer and display the current task stage."""
     root = git.repo_root()
     wf = load_workflow(root, _wf_name(ctx))
@@ -121,8 +130,9 @@ def status(ctx: click.Context) -> None:
 
 
 @app.command(name="next")
+@_wf_option
 @click.pass_context
-def next_command(ctx: click.Context) -> None:
+def next_command(ctx: click.Context, workflow: str | None) -> None:  # noqa: ARG001
     """Show available actions for the current stage."""
     root = git.repo_root()
     wf = load_workflow(root, _wf_name(ctx))
@@ -139,7 +149,11 @@ def next_command(ctx: click.Context) -> None:
             click.echo(f"  {action.name}: $ neo do {action.name}")
 
 
-app.add_command(DoGroup("do", help="Execute a workflow action."))
+_do_group = DoGroup("do", help="Execute a workflow action.")
+_do_group.params.append(
+    click.Option(["-w", "--workflow"], default=None, help="Workflow name or path")
+)
+app.add_command(_do_group)
 
 
 _INIT_WORKFLOW = """\
@@ -207,6 +221,7 @@ def workflow() -> None:
 
 
 @workflow.command()
+@_wf_option
 @click.option(
     "--format",
     "fmt",
@@ -215,7 +230,7 @@ def workflow() -> None:
     help="Diagram format",
 )
 @click.pass_context
-def diagram(ctx: click.Context, fmt: str) -> None:
+def diagram(ctx: click.Context, workflow: str | None, fmt: str) -> None:  # noqa: ARG001
     """Print the workflow state machine as a diagram."""
     wf = _get_workflow(ctx)
     if fmt == "d2":

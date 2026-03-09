@@ -80,6 +80,11 @@ def test_multi_workflow() -> None:
         assert "go_beta" in r.stdout, f"expected go_beta: {r.stdout}"
         assert "go_alpha" not in r.stdout
 
+        # 6. -w on subcommand works too (neo status -w alpha)
+        r = _neo(root, "status", "-w", "alpha")
+        assert r.returncode == 0, f"status -w alpha (subcommand) failed: {r.stderr}"
+        assert "alpha-ready" in r.stdout, f"expected alpha-ready: {r.stdout}"
+
     print("PASS: multi-workflow integration test")
 
 
