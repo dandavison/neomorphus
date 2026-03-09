@@ -34,14 +34,20 @@ The basic idea of working with `neo` is:
 
 Run `neo init` to scaffold a `.neo/` directory, then edit the files to define your workflow.
 A workflow is a state machine: stages inferred from the filesystem, connected by actions (prompts
-sent to an AI agent). Here are two examples.
+sent to an AI agent).
+
+Each workflow lives in its own subdirectory under `.neo/`. A project can have multiple workflows;
+use `-w` to select one (implicit when there's only one).
 
 ### Example: issue workflow
 
-A workflow for working on issues: reproduce, plan, implement, verify.
+```
+neo init issue
+# edit .neo/issue/workflow.py and .neo/issue/actions/
+```
 
 ```
-.neo/
+.neo/issue/
 ├── workflow.py
 └── actions/
     ├── repro.md
@@ -50,7 +56,7 @@ A workflow for working on issues: reproduce, plan, implement, verify.
     └── verify.md
 ```
 
-`.neo/workflow.py`:
+`.neo/issue/workflow.py`:
 ```python
 from pathlib import Path
 from neomorphus import Stage, Workflow, load_actions
@@ -82,10 +88,10 @@ workflow = Workflow(
 )
 ```
 
-The action prompts are markdown files with YAML frontmatter. They can reference files via
-`{{mustache}}` variables — `neo` reads `.task/` files into the template context automatically.
+Action prompts are markdown files with YAML frontmatter and `{{mustache}}` variables.
+`neo` reads `.task/` files into the template context automatically.
 
-`.neo/actions/repro.md`:
+`.neo/issue/actions/repro.md`:
 ```markdown
 ---
 name: repro
@@ -94,7 +100,7 @@ Read .task/task.md. Write a failing test that reproduces the bug.
 Save your analysis to .task/repro.md.
 ```
 
-`.neo/actions/plan.md`:
+`.neo/issue/actions/plan.md`:
 ```markdown
 ---
 name: plan
@@ -106,7 +112,7 @@ Given the reproduction in .task/repro.md:
 Propose an implementation plan. Write it to .task/plan.md.
 ```
 
-`.neo/actions/implement.md`:
+`.neo/issue/actions/implement.md`:
 ```markdown
 ---
 name: implement
@@ -118,7 +124,7 @@ Implement the fix described in .task/plan.md:
 Write .task/result.md summarising what you changed and why.
 ```
 
-`.neo/actions/verify.md`:
+`.neo/issue/actions/verify.md`:
 ```markdown
 ---
 name: verify
@@ -127,7 +133,7 @@ Review the implementation. Run the tests. Confirm the repro test now passes.
 Update .task/result.md with verification status.
 ```
 
-Usage:
+Usage (single workflow — `-w` implicit):
 ```
 $ neo status
 stage: open
@@ -136,32 +142,28 @@ $ neo next
 stage: open
   repro: $ neo do repro
 
-$ neo do repro
-# agent writes failing test, saves .task/repro.md
-
-$ neo do plan
-# agent reads repro, writes .task/plan.md
-
-$ neo do implement
-# agent implements the fix
-
-$ neo do verify
-# agent runs tests, confirms fix
+$ neo do repro       # agent writes failing test, saves .task/repro.md
+$ neo do plan        # agent reads repro, writes .task/plan.md
+$ neo do implement   # agent implements the fix
+$ neo do verify      # agent runs tests, confirms fix
 ```
 
 ### Example: PR review workflow
 
-A workflow for reviewing pull requests: first build context, then review.
+```
+neo init pr_review
+# edit .neo/pr_review/workflow.py and .neo/pr_review/actions/
+```
 
 ```
-.neo/
+.neo/pr_review/
 ├── workflow.py
 └── actions/
     ├── contextualize.md
     └── review.md
 ```
 
-`.neo/workflow.py`:
+`.neo/pr_review/workflow.py`:
 ```python
 from pathlib import Path
 from neomorphus import Stage, Workflow, load_actions
@@ -185,7 +187,7 @@ workflow = Workflow(
 )
 ```
 
-`.neo/actions/contextualize.md`:
+`.neo/pr_review/actions/contextualize.md`:
 ```markdown
 ---
 name: contextualize
@@ -196,7 +198,7 @@ Fetch the PR at {{pr_url}}. Identify what the author is trying to achieve.
 Understand the surrounding code. Write your analysis to .task/context.md.
 ```
 
-`.neo/actions/review.md`:
+`.neo/pr_review/actions/review.md`:
 ```markdown
 ---
 name: review
@@ -209,11 +211,14 @@ Review the PR. Check for correctness, test coverage, simplicity, and
 whether the change is the right move. Write .task/review.md.
 ```
 
-Usage:
-```
-$ neo do contextualize https://github.com/org/repo/pull/123
-# agent fetches PR, writes .task/context.md
+### Multiple workflows
 
-$ neo do review
-# agent reviews against context, writes .task/review.md
+When a project has both workflows, use `-w` to select:
+```
+$ neo -w issue status
+stage: open
+
+$ neo -w pr_review do contextualize https://github.com/org/repo/pull/123
+
+$ neo -w pr_review do review
 ```
