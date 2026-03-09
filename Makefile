@@ -1,6 +1,7 @@
 test:
 	uv run pytest -xvs
 	uv run python integration_tests/custom_workflow/test.py
+	uv run python integration_tests/multi_workflow/test.py
 
 check:
 	uv run ruff format src/ tests/ integration_tests/
