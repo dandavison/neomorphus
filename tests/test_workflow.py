@@ -93,10 +93,9 @@ def test_optional_args_parsing() -> None:
 def test_load_actions() -> None:
     actions = load_actions()
     names = {a.name for a in actions}
-    assert {"init", "plan", "select_plan", "implement", "evolve", "evolve_interactive"} == names
+    assert {"init", "plan", "select_plan", "implement", "evolve"} == names
     assert actions.init.human is True
     assert actions.evolve.args == ("target",)
-    assert actions.evolve_interactive.args == ("target",)
 
 
 def test_task_context(tmp_path: Path) -> None:

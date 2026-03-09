@@ -53,13 +53,9 @@ def _print_stream(line: str) -> None:
             sys.stdout.flush()
 
 
-def invoke_claude(prompt: str, *, interactive: bool = False) -> int:
+def invoke_claude(prompt: str) -> int:
     cmd = _claude_cmd()
     env = _claude_env()
-    if interactive:
-        os.execvpe(cmd, [cmd, prompt], env)
-        return 0  # unreachable, satisfies type checker
-
     proc = subprocess.Popen(
         [cmd, "--print", "--verbose", "--output-format", "stream-json", "-p", prompt],
         stdout=subprocess.PIPE,
@@ -74,14 +70,10 @@ def invoke_claude(prompt: str, *, interactive: bool = False) -> int:
     return proc.returncode
 
 
-def run(prompt: str, *, interactive: bool = False) -> None:
+def run(prompt: str) -> None:
     if not git.is_clean():
         print("error: working tree is not clean; commit or stash changes first", file=sys.stderr)
         raise SystemExit(1)
-
-    if interactive:
-        invoke_claude(prompt, interactive=True)  # exec, does not return
-        return  # unreachable
 
     before = git.head_sha()
     returncode = invoke_claude(prompt)

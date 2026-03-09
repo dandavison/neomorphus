@@ -5,7 +5,7 @@ from click.shell_completion import CompletionItem
 
 from neomorphus import _git as git
 from neomorphus import _run as run_mod
-from neomorphus._actions import Action, load_actions, task_context
+from neomorphus._actions import Action, task_context
 from neomorphus._workflow import (
     BUILTIN_WORKFLOWS,
     Workflow,
@@ -64,23 +64,18 @@ def _get_workflow(ctx: click.Context) -> Workflow:
 
 
 def _make_action_command(action: Action) -> click.Command:
-    interactive_action = _find_interactive(action.name)
-
     @click.command(name=action.name)
     @click.option("--prompt", "-p", default=None, help="Additional steering prompt")
-    @click.option("--interactive", "-i", is_flag=True, help="Run in interactive mode")
     @click.option("--dry-run", "-n", is_flag=True, help="Print the rendered prompt and exit")
     @click.pass_context
     def handler(
         ctx: click.Context,
         prompt: str | None,
-        interactive: bool,
         dry_run: bool,
         **kwargs: str,
     ) -> None:
-        chosen = interactive_action if interactive and interactive_action else action
-        if chosen.human:
-            click.echo(f"{chosen.name} is a human action: {chosen.prompt_template}")
+        if action.human:
+            click.echo(f"{action.name} is a human action: {action.prompt_template}")
             raise SystemExit(1)
         root = git.repo_root()
         active_wf = _get_workflow(ctx)
@@ -97,15 +92,15 @@ def _make_action_command(action: Action) -> click.Command:
         tctx.update({k: v for k, v in kwargs.items() if v is not None})
         if prompt:
             tctx["user_prompt"] = prompt
-        rendered = chosen.render_prompt(tctx)
-        if prompt and "{{user_prompt}}" not in chosen.prompt_template:
+        rendered = action.render_prompt(tctx)
+        if prompt and "{{user_prompt}}" not in action.prompt_template:
             rendered = f"{rendered}\n\nAdditional direction: {prompt}"
         if dry_run:
             click.echo(rendered)
             return
-        click.echo(f"action: {chosen.name}")
+        click.echo(f"action: {action.name}")
         click.echo(f"prompt: {rendered[:200]}{'...' if len(rendered) > 200 else ''}")
-        run_mod.run(rendered, interactive=interactive)
+        run_mod.run(rendered)
 
     for i, arg_name in enumerate(action.args):
         handler.params.insert(i, click.Argument([arg_name]))
@@ -114,11 +109,6 @@ def _make_action_command(action: Action) -> click.Command:
         handler.params.insert(n + i, click.Argument([arg_name], required=False, default=None))
 
     return handler
-
-
-def _find_interactive(name: str) -> Action | None:
-    actions = load_actions()
-    return getattr(actions, f"{name}_interactive", None)
 
 
 class DoGroup(click.Group):
