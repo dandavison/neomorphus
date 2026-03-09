@@ -1,8 +1,43 @@
 from pathlib import Path
 
+import pytest
+
 from neomorphus._actions import Action, load_actions, task_context
 from neomorphus._status import Stage
+from neomorphus._workflow import Workflow, load_workflow
 from neomorphus.workflows.default import DEFAULT_WORKFLOW
+
+_MINIMAL_WORKFLOW = """\
+from pathlib import Path
+from neomorphus import Stage, Workflow, load_actions
+
+A = Stage("a")
+B = Stage("b")
+actions = load_actions(Path(__file__).parent / "actions")
+
+def infer_stage(root: Path) -> Stage:
+    return A
+
+workflow = Workflow(
+    transitions={A: {actions.go: B}},
+    infer_stage=infer_stage,
+)
+"""
+
+_MINIMAL_ACTION = """\
+---
+name: go
+---
+Do the thing.
+"""
+
+
+def _create_workflow(neo_dir: Path, name: str) -> None:
+    wf_dir = neo_dir / name
+    actions_dir = wf_dir / "actions"
+    actions_dir.mkdir(parents=True)
+    (wf_dir / "workflow.py").write_text(_MINIMAL_WORKFLOW)
+    (actions_dir / "go.md").write_text(_MINIMAL_ACTION)
 
 
 def test_every_stage_has_actions() -> None:
@@ -77,3 +112,53 @@ def test_diagram_d2() -> None:
     out = DEFAULT_WORKFLOW.diagram_d2()
     assert "no-task -> task-defined: init" in out
     assert "plan-selected -> no-task: implement" in out
+
+
+# --- load_workflow resolution tests ---
+
+
+def test_no_neo_dir_returns_default(tmp_path: Path) -> None:
+    wf = load_workflow(tmp_path)
+    assert wf is DEFAULT_WORKFLOW
+
+
+def test_single_subdir_implicit(tmp_path: Path) -> None:
+    _create_workflow(tmp_path / ".neo", "issue")
+    wf = load_workflow(tmp_path)
+    assert isinstance(wf, Workflow)
+    assert wf is not DEFAULT_WORKFLOW
+
+
+def test_explicit_name(tmp_path: Path) -> None:
+    neo_dir = tmp_path / ".neo"
+    _create_workflow(neo_dir, "issue")
+    _create_workflow(neo_dir, "pr_review")
+    wf = load_workflow(tmp_path, name="issue")
+    assert isinstance(wf, Workflow)
+
+
+def test_multiple_subdir_no_name_errors(tmp_path: Path) -> None:
+    neo_dir = tmp_path / ".neo"
+    _create_workflow(neo_dir, "issue")
+    _create_workflow(neo_dir, "pr_review")
+    with pytest.raises(ValueError, match="multiple workflows"):
+        load_workflow(tmp_path)
+
+
+def test_neo_dir_exists_but_no_workflows_errors(tmp_path: Path) -> None:
+    (tmp_path / ".neo").mkdir()
+    with pytest.raises(ValueError, match="no workflows"):
+        load_workflow(tmp_path)
+
+
+def test_explicit_name_missing_errors(tmp_path: Path) -> None:
+    (tmp_path / ".neo").mkdir()
+    with pytest.raises(ValueError, match="not found"):
+        load_workflow(tmp_path, name="nonexistent")
+
+
+def test_file_path_resolution(tmp_path: Path) -> None:
+    _create_workflow(tmp_path / ".neo", "issue")
+    wf_file = tmp_path / ".neo" / "issue" / "workflow.py"
+    wf = load_workflow(tmp_path, name=str(wf_file))
+    assert isinstance(wf, Workflow)
