@@ -6,6 +6,7 @@ from click.shell_completion import CompletionItem
 from neomorphus import _git as git
 from neomorphus import _run as run_mod
 from neomorphus._actions import Action, task_context
+from neomorphus._status import Stage
 from neomorphus._workflow import (
     BUILTIN_WORKFLOWS,
     Workflow,
@@ -193,11 +194,88 @@ def next_command(ctx: click.Context, workflow: str | None) -> None:  # noqa: ARG
             click.echo(f"  {action.name}: $ neo do {action.name}")
 
 
-_do_group = DoGroup("do", help="Execute a workflow action.")
+_do_group = DoGroup("do", help="Execute a workflow action.", invoke_without_command=True)
 _do_group.params.append(
     click.Option(["-w", "--workflow"], default=None, help="Workflow name or path")
 )
 app.add_command(_do_group)
+
+
+def _is_auto_runnable(
+    action: Action,
+    tctx: dict[str, str],
+    wf: Workflow,
+    stage: Stage,
+) -> bool:
+    if action.human:
+        return False
+    if wf.target_stage(stage, action.name) == stage:
+        return False
+    return all(arg in tctx for arg in action.args)
+
+
+def _auto_advance(ctx: click.Context, *, prompt: str | None, dry_run: bool) -> None:
+    root = git.repo_root()
+    wf = _get_workflow(ctx)
+    verbose = _verbose(ctx)
+    executed: list[str] = []
+
+    while True:
+        stage = wf.stage(root)
+        tctx = task_context(root)
+        actions = wf.next_actions(stage)
+        runnable = [a for a in actions if _is_auto_runnable(a, tctx, wf, stage)]
+        if not runnable:
+            break
+
+        for action in runnable:
+            if verbose:
+                click.echo(f"auto: {action.name} (stage: {stage})")
+            tctx_local = dict(tctx)
+            if prompt:
+                tctx_local["user_prompt"] = prompt
+            rendered = action.render_prompt(tctx_local)
+            if prompt and "{{user_prompt}}" not in action.prompt_template:
+                rendered = f"{rendered}\n\nAdditional direction: {prompt}"
+            if dry_run:
+                click.echo(f"--- {action.name} ---")
+                click.echo(rendered)
+                executed.append(action.name)
+                continue
+            try:
+                run_mod.run(rendered)
+            except SystemExit:
+                if executed:
+                    click.echo(f"failed at {action.name} after: {' → '.join(executed)}")
+                raise
+            executed.append(action.name)
+
+        if dry_run:
+            break
+        new_stage = wf.stage(root)
+        if new_stage == stage:
+            break
+
+    stage = wf.stage(root)
+    if executed:
+        click.echo(f"done: {' → '.join(executed)} (stage: {stage})")
+    else:
+        click.echo(f"nothing to do (stage: {stage})")
+
+
+@click.pass_context
+def _do_callback(ctx: click.Context, prompt: str | None, dry_run: bool, **_: object) -> None:
+    if ctx.invoked_subcommand is None:
+        _auto_advance(ctx, prompt=prompt, dry_run=dry_run)
+
+
+_do_group.callback = _do_callback
+_do_group.params.append(
+    click.Option(["--prompt", "-p"], default=None, help="Steering prompt (auto-advance)"),
+)
+_do_group.params.append(
+    click.Option(["--dry-run", "-n"], is_flag=True, help="Print prompts, don't execute"),
+)
 
 
 @app.command()
