@@ -1,6 +1,7 @@
 import shutil
 
 import click
+from click.shell_completion import CompletionItem
 
 from neomorphus import _git as git
 from neomorphus import _run as run_mod
@@ -16,7 +17,28 @@ from neomorphus._workflow import (
     stored_workflow,
 )
 
-_wf_option = click.option("-w", "--workflow", default=None, help="Workflow name or path")
+
+def _complete_workflow(
+    ctx: click.Context,  # noqa: ARG001
+    param: click.Parameter,  # noqa: ARG001
+    incomplete: str,
+) -> list[CompletionItem]:
+    try:
+        root = git.repo_root()
+    except Exception:
+        return []
+    return [
+        CompletionItem(name) for name, _ in list_workflows(root) if name.startswith(incomplete)
+    ]
+
+
+_wf_option = click.option(
+    "-w",
+    "--workflow",
+    default=None,
+    help="Workflow name or path",
+    shell_complete=_complete_workflow,
+)
 
 
 def _wf_name(ctx: click.Context) -> str | None:
