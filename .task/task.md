@@ -32,3 +32,9 @@ auto-executed and are treated as blocking (same as human actions).
 - Core: stop at human actions
 - Core: skip actions with unsatisfied required args
 - Stretch: concurrent execution when multiple independent actions are available
+
+## State machine transitions
+
+1. (feature-absent, tests-failing) — failing tests committed at a9bce19
+2. (feature-absent, tests-failing) → plan created at .task/plan.md
+3. (feature-absent, tests-failing) → (feature-implemented, tests-passing) — fix committed at 30a8efb
