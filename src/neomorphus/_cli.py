@@ -104,8 +104,9 @@ def _make_action_command(action: Action) -> click.Command:
         if dry_run:
             click.echo(rendered)
             return
-        click.echo(f"action: {action.name}")
-        click.echo(f"prompt: {rendered[:200]}{'...' if len(rendered) > 200 else ''}")
+        if _verbose(ctx):
+            click.echo(f"action: {action.name}")
+            click.echo(f"prompt: {rendered[:200]}{'...' if len(rendered) > 200 else ''}")
         run_mod.run(rendered)
 
     for i, arg_name in enumerate(action.args):
@@ -147,9 +148,19 @@ class DoGroup(click.Group):
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
 
+def _verbose(ctx: click.Context) -> bool:
+    c: click.Context | None = ctx
+    while c is not None:
+        if c.params.get("verbose"):
+            return True
+        c = c.parent
+    return False
+
+
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option("-w", "--workflow", default=None, help="Workflow name or path")
-def app(workflow: str | None) -> None:  # noqa: ARG001
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output")
+def app(workflow: str | None, verbose: bool) -> None:  # noqa: ARG001
     """Neomorphus: AI-assisted software development."""
 
 
@@ -213,9 +224,7 @@ def init(name: str | None, template: str) -> None:
     shutil.copy2(src_dir / "__init__.py", wf_dir / "workflow.py")
     for md in sorted((src_dir / "actions").glob("*.md")):
         shutil.copy2(md, actions_dir / md.name)
-        click.echo(f"created .neo/{name}/actions/{md.name}")
-    click.echo(f"created .neo/{name}/workflow.py")
-    click.echo(f"\nseeded from builtin '{template}' — edit to customize")
+    click.echo(f"created .neo/{name}/ from builtin '{template}'")
 
 
 @app.group()
@@ -244,7 +253,8 @@ def use(ctx: click.Context, name: str | None, workflow: str | None, clear: bool)
     gd = git.git_dir()
     if clear:
         clear_stored_workflow(gd)
-        click.echo("cleared stored workflow default")
+        if _verbose(ctx):
+            click.echo("cleared stored workflow default")
         return
     name = _wf_name(ctx)
     if name is None:
@@ -257,7 +267,8 @@ def use(ctx: click.Context, name: str | None, workflow: str | None, clear: bool)
     # Validate that the name resolves.
     load_workflow(git.repo_root(), name)
     store_workflow(gd, name)
-    click.echo(f"set workflow: {name}")
+    if _verbose(ctx):
+        click.echo(f"set workflow: {name}")
 
 
 @workflow.command()

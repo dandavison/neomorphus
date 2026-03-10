@@ -163,7 +163,6 @@ def test_workflow_use_sets_default(git_repo: Path) -> None:
     # Set a default
     result = runner.invoke(app, ["workflow", "use", "-w", "bug"])
     assert result.exit_code == 0
-    assert "bug" in result.output
 
     # Show resolves to bug-fix without -w
     result = runner.invoke(app, ["workflow", "show"])
@@ -178,7 +177,6 @@ def test_workflow_use_sets_default(git_repo: Path) -> None:
     # Clear
     result = runner.invoke(app, ["workflow", "use", "--clear"])
     assert result.exit_code == 0
-    assert "cleared" in result.output
 
     # Back to default
     result = runner.invoke(app, ["workflow", "show"])
@@ -191,16 +189,14 @@ def test_workflow_use_positional(git_repo: Path) -> None:
     # Positional sets default
     result = runner.invoke(app, ["workflow", "use", "bug"])
     assert result.exit_code == 0
-    assert "bug" in result.output
 
     # Confirm it stuck
     result = runner.invoke(app, ["workflow", "use"])
-    assert "bug" in result.output
+    assert "bug" in result.output  # query output still shown
 
     # -w overrides positional
     result = runner.invoke(app, ["workflow", "use", "bug", "-w", "review"])
     assert result.exit_code == 0
-    assert "review" in result.output
 
     # Positional works for show and diagram too
     result = runner.invoke(app, ["workflow", "show", "bug"])
