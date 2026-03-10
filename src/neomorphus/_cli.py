@@ -138,7 +138,10 @@ class DoGroup(click.Group):
         return _make_action_command(action)
 
 
-@click.group()
+CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+
+
+@click.group(context_settings=CONTEXT_SETTINGS)
 @click.option("-w", "--workflow", default=None, help="Workflow name or path")
 def app(workflow: str | None) -> None:  # noqa: ARG001
     """Neomorphus: AI-assisted software development."""
