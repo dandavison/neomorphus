@@ -33,8 +33,9 @@ n = len(existing)
 call_record = {"args": args, "prompt": prompt}
 (calls_dir / f"{n}.json").write_text(json.dumps(call_record))
 
-# Read script
-script_file = state_dir / "script.json"
+# Read script (per-call script takes precedence over shared script)
+script_n = state_dir / f"script_{n}.json"
+script_file = script_n if script_n.is_file() else state_dir / "script.json"
 script: dict = {}
 if script_file.is_file():
     script = json.loads(script_file.read_text())

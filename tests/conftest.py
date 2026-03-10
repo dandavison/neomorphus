@@ -41,6 +41,11 @@ class FakeClaude:
         script = {"actions": actions or [], "stdout": stdout, "exit_code": exit_code}
         (self.state_dir / "script.json").write_text(json.dumps(script))
 
+    def script_sequence(self, scripts: list[dict]) -> None:
+        """Configure per-call scripts: scripts[i] is used for call number i."""
+        for i, s in enumerate(scripts):
+            (self.state_dir / f"script_{i}.json").write_text(json.dumps(s))
+
     def calls(self) -> list[dict]:
         files = sorted(self._calls_dir.glob("*.json"))
         return [json.loads(f.read_text()) for f in files]

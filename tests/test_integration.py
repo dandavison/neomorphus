@@ -5,6 +5,9 @@ from pathlib import Path
 from click.testing import CliRunner
 
 from neomorphus._cli import app
+from neomorphus.workflows.bug import DONE as BUG_DONE
+from neomorphus.workflows.bug import OPEN as BUG_OPEN
+from neomorphus.workflows.bug import workflow as BUG_WORKFLOW
 from neomorphus.workflows.default import (
     NO_TASK,
     PLAN_SELECTED,
@@ -248,3 +251,49 @@ def test_next_shows_actions(git_repo: Path) -> None:
     assert result.exit_code == 0
     assert "evolve" in result.output
     assert "plan" in result.output
+
+
+# --- auto-advance tests ---
+
+
+def test_do_no_args_auto_advances_through_bug_workflow(
+    git_repo: Path, fake_claude: FakeClaude
+) -> None:
+    """neo do (no action) should advance through all non-human actions until blocked."""
+    _setup_task(git_repo, "crash on null input")
+    _commit_all(git_repo)
+    assert BUG_WORKFLOW.stage(git_repo) == BUG_OPEN
+
+    # Script each step: research creates repro.md, plan creates plan.md,
+    # implement creates result.md.
+    fake_claude.script_sequence(
+        [
+            {"actions": [{"write": ".task/repro.md", "content": "repro details"}]},
+            {"actions": [{"write": ".task/plan.md", "content": "the plan"}]},
+            {"actions": [{"write": ".task/result.md", "content": "done"}]},
+        ]
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["-w", "bug", "do"])
+    assert result.exit_code == 0, f"exit {result.exit_code}: {result.output}"
+
+    # All three actions should have been invoked.
+    calls = fake_claude.calls()
+    assert len(calls) == 3, f"expected 3 claude calls, got {len(calls)}"
+
+    # Final stage should be DONE.
+    assert BUG_WORKFLOW.stage(git_repo) == BUG_DONE
+
+
+def test_do_no_args_stops_at_human_action(git_repo: Path, fake_claude: FakeClaude) -> None:
+    """neo do (no action) on default workflow at no-task should stop immediately
+    because the only action (init) is human."""
+    assert DEFAULT_WORKFLOW.stage(git_repo) == NO_TASK
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["do"])
+    assert result.exit_code == 0, f"exit {result.exit_code}: {result.output}"
+
+    # No claude calls should have been made.
+    assert len(fake_claude.calls()) == 0
