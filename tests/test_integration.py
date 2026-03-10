@@ -186,6 +186,32 @@ def test_workflow_use_sets_default(git_repo: Path) -> None:
     assert "--[init]-->" in result.output
 
 
+def test_workflow_use_positional(git_repo: Path) -> None:
+    runner = CliRunner()
+    # Positional sets default
+    result = runner.invoke(app, ["workflow", "use", "bug"])
+    assert result.exit_code == 0
+    assert "bug" in result.output
+
+    # Confirm it stuck
+    result = runner.invoke(app, ["workflow", "use"])
+    assert "bug" in result.output
+
+    # -w overrides positional
+    result = runner.invoke(app, ["workflow", "use", "bug", "-w", "review"])
+    assert result.exit_code == 0
+    assert "review" in result.output
+
+    # Positional works for show and diagram too
+    result = runner.invoke(app, ["workflow", "show", "bug"])
+    assert result.exit_code == 0
+    assert "--[research]-->" in result.output
+
+    result = runner.invoke(app, ["workflow", "diagram", "bug"])
+    assert result.exit_code == 0
+    assert "stateDiagram" in result.output
+
+
 def test_workflow_use_validates_name(git_repo: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["workflow", "use", "-w", "nonexistent"])

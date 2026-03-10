@@ -41,6 +41,12 @@ _wf_option = click.option(
 )
 
 
+def _merge_positional_workflow(ctx: click.Context, name: str | None) -> None:
+    """Allow a positional name to serve as -w/--workflow."""
+    if name is not None and ctx.params.get("workflow") is None:
+        ctx.params["workflow"] = name
+
+
 def _wf_name(ctx: click.Context) -> str | None:
     c: click.Context | None = ctx
     while c is not None:
@@ -228,11 +234,13 @@ def workflow_list() -> None:
 
 
 @workflow.command()
+@click.argument("name", default=None, required=False, shell_complete=_complete_workflow)
 @_wf_option
 @click.option("--clear", is_flag=True, help="Remove the stored default")
 @click.pass_context
-def use(ctx: click.Context, workflow: str | None, clear: bool) -> None:  # noqa: ARG001
+def use(ctx: click.Context, name: str | None, workflow: str | None, clear: bool) -> None:  # noqa: ARG001
     """Set or clear the default workflow for this repo."""
+    _merge_positional_workflow(ctx, name)
     gd = git.git_dir()
     if clear:
         clear_stored_workflow(gd)
@@ -253,15 +261,18 @@ def use(ctx: click.Context, workflow: str | None, clear: bool) -> None:  # noqa:
 
 
 @workflow.command()
+@click.argument("name", default=None, required=False, shell_complete=_complete_workflow)
 @_wf_option
 @click.pass_context
-def show(ctx: click.Context, workflow: str | None) -> None:  # noqa: ARG001
+def show(ctx: click.Context, name: str | None, workflow: str | None) -> None:  # noqa: ARG001
     """Show the workflow DAG definition."""
+    _merge_positional_workflow(ctx, name)
     wf = _get_workflow(ctx)
     click.echo(wf.describe())
 
 
 @workflow.command()
+@click.argument("name", default=None, required=False, shell_complete=_complete_workflow)
 @_wf_option
 @click.option(
     "--format",
@@ -271,8 +282,9 @@ def show(ctx: click.Context, workflow: str | None) -> None:  # noqa: ARG001
     help="Diagram format",
 )
 @click.pass_context
-def diagram(ctx: click.Context, workflow: str | None, fmt: str) -> None:  # noqa: ARG001
+def diagram(ctx: click.Context, name: str | None, workflow: str | None, fmt: str) -> None:  # noqa: ARG001
     """Print the workflow state machine as a diagram."""
+    _merge_positional_workflow(ctx, name)
     wf = _get_workflow(ctx)
     if fmt == "d2":
         click.echo(wf.diagram_d2())
