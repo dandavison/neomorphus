@@ -257,7 +257,7 @@ def use(ctx: click.Context, name: str | None, workflow: str | None, clear: bool)
     # Validate that the name resolves.
     load_workflow(git.repo_root(), name)
     store_workflow(gd, name)
-    click.echo(f"default workflow: {name}")
+    click.echo(f"set workflow: {name}")
 
 
 @workflow.command()
