@@ -58,16 +58,27 @@ def invoke_claude(prompt: str) -> int:
     env = _claude_env()
     proc = subprocess.Popen(
         [cmd, "--print", "--verbose", "--output-format", "stream-json", "-p", prompt],
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
-        stderr=None,
+        stderr=subprocess.DEVNULL,
         text=True,
         env=env,
+        start_new_session=True,
     )
     assert proc.stdout is not None
-    for line in proc.stdout:
-        _print_stream(line)
-    proc.wait()
-    return proc.returncode
+    try:
+        for line in proc.stdout:
+            _print_stream(line)
+        proc.wait()
+        return proc.returncode
+    except KeyboardInterrupt:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+        raise
 
 
 def run(prompt: str) -> None:
