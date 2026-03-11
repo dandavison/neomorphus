@@ -206,12 +206,14 @@ def _is_auto_runnable(
     tctx: dict[str, str],
     wf: Workflow,
     stage: Stage,
+    *,
+    has_prompt: bool = False,
 ) -> bool:
     if action.human:
         return False
     if wf.target_stage(stage, action.name) == stage:
         return False
-    return all(arg in tctx for arg in action.args)
+    return all(arg in tctx or has_prompt for arg in action.args)
 
 
 def _auto_advance(ctx: click.Context, *, prompt: str | None, dry_run: bool) -> None:
@@ -224,7 +226,10 @@ def _auto_advance(ctx: click.Context, *, prompt: str | None, dry_run: bool) -> N
         stage = wf.stage(root)
         tctx = task_context(root)
         actions = wf.next_actions(stage)
-        runnable = [a for a in actions if _is_auto_runnable(a, tctx, wf, stage)]
+        has_prompt = prompt is not None
+        runnable = [
+            a for a in actions if _is_auto_runnable(a, tctx, wf, stage, has_prompt=has_prompt)
+        ]
         if not runnable:
             break
 
@@ -234,6 +239,9 @@ def _auto_advance(ctx: click.Context, *, prompt: str | None, dry_run: bool) -> N
             tctx_local = dict(tctx)
             if prompt:
                 tctx_local["user_prompt"] = prompt
+                for arg in action.args:
+                    if arg not in tctx_local:
+                        tctx_local[arg] = prompt
             rendered = action.render_prompt(tctx_local)
             if prompt and "{{user_prompt}}" not in action.prompt_template:
                 rendered = f"{rendered}\n\nAdditional direction: {prompt}"
