@@ -30,6 +30,30 @@ The basic idea of working with `neo` is:
   an agent to carry them out, and it can have the agent do it, in collaboration with you, or
   automatically.
 
+## Command reference
+
+```
+neo status                              # show current workflow stage
+neo status -w bug                       # show stage for a specific workflow
+neo next                                # list available actions at current stage
+neo do research                         # run a single action
+neo do research -n                      # dry-run: print the rendered prompt, don't execute
+neo do research -p "focus on auth"      # run action with additional steering
+neo do evolve .task/task.md             # run action with a required positional arg
+neo do                                  # auto-advance: run all eligible actions until blocked
+neo do -n                               # auto-advance dry-run
+neo do -p "fix the crash on nil input"  # auto-advance with steering prompt
+neo workflow list                       # list available workflows
+neo workflow show                       # print the workflow state machine
+neo workflow show bug                   # print a specific workflow
+neo workflow diagram                    # print workflow as a mermaid diagram
+neo workflow use bug                    # set the default workflow for this repo
+neo workflow use --clear                # clear the stored default
+neo init                                # scaffold a .neo/ custom workflow from the default template
+neo init myworkflow --from bug          # scaffold from a specific builtin
+neo run -p "do something"              # low-level: invoke Claude with a prompt at a clean commit
+```
+
 ## Custom workflows
 
 Run `neo init` to scaffold a `.neo/` directory, then edit the files to define your workflow.
