@@ -8,6 +8,9 @@ from neomorphus._cli import app
 from neomorphus.workflows.bug import DONE as BUG_DONE
 from neomorphus.workflows.bug import OPEN as BUG_OPEN
 from neomorphus.workflows.bug import workflow as BUG_WORKFLOW
+from neomorphus.workflows.feature import DONE as FEAT_DONE
+from neomorphus.workflows.feature import OPEN as FEAT_OPEN
+from neomorphus.workflows.feature import workflow as FEAT_WORKFLOW
 from neomorphus.workflows.default import (
     NO_TASK,
     PLAN_SELECTED,
@@ -297,3 +300,30 @@ def test_do_no_args_stops_at_human_action(git_repo: Path, fake_claude: FakeClaud
 
     # No claude calls should have been made.
     assert len(fake_claude.calls()) == 0
+
+
+def test_do_prompt_fills_unsatisfied_args(git_repo: Path, fake_claude: FakeClaude) -> None:
+    """neo do -p should fill unsatisfied required args so auto-advance can
+    start workflows whose first action needs a positional (e.g. feature/specify)."""
+    assert FEAT_WORKFLOW.stage(git_repo) == FEAT_OPEN
+
+    fake_claude.script_sequence(
+        [
+            {"actions": [
+                {"write": ".task/task.md", "content": "terminal diagram rendering"},
+                {"write": ".task/spec.md", "content": "the spec"},
+            ]},
+            {"actions": [{"write": ".task/plan.md", "content": "the plan"}]},
+            {"actions": [{"write": ".task/result.md", "content": "done"}]},
+        ]
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["-w", "feature", "do", "-p", "terminal diagram rendering"])
+    assert result.exit_code == 0, f"exit {result.exit_code}: {result.output}"
+
+    calls = fake_claude.calls()
+    assert len(calls) == 3, f"expected 3 claude calls, got {len(calls)}"
+    # The prompt for specify should contain the -p string as the issue arg.
+    assert "terminal diagram rendering" in calls[0]["prompt"]
+    assert FEAT_WORKFLOW.stage(git_repo) == FEAT_DONE
